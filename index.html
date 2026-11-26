@@ -1678,12 +1678,6 @@
                 return;
             }
 
-            const apiKey = (appState.geminiApiKey || '').trim();
-            if (!apiKey) {
-                showToast('Añade tu Gemini API Key en Perfil para calcular con IA', '🔑');
-                return;
-            }
-
             const cacheKey = `${categoryKey}::${description.toLowerCase()}`;
             if (appState.geminiCache && appState.geminiCache[cacheKey]) {
                 incorporateGeminiItemsToMeal(categoryKey, appState.geminiCache[cacheKey]);
@@ -1698,59 +1692,83 @@
             }
 
             try {
-                const prompt = `Analiza esta comida para el turno "${categoryKey}": "${description}". Devuelve un array JSON con cada alimento o componente indicado, estimando con realismo calorías totales, gramos de proteína, carbohidratos y grasas, cantidad y unidad ("grams" o "units"). Responde solo con JSON válido.`;
+                const localKey = (appState.geminiApiKey || window.GEMINI_API_KEY || '').trim();
+                let cleanItems = [];
 
-                const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            responseMimeType: 'application/json',
-                            responseSchema: {
-                                type: 'ARRAY',
-                                items: {
-                                    type: 'OBJECT',
-                                    properties: {
-                                        name: { type: 'STRING' },
-                                        amount: { type: 'NUMBER' },
-                                        unit: { type: 'STRING', enum: ['grams', 'units'] },
-                                        kcal: { type: 'NUMBER' },
-                                        protein: { type: 'NUMBER' },
-                                        carbs: { type: 'NUMBER' },
-                                        fat: { type: 'NUMBER' }
-                                    },
-                                    required: ['name', 'amount', 'unit', 'kcal', 'protein', 'carbs', 'fat']
+                if (window.location.protocol !== 'file:') {
+                    const res = await fetch('/api/estimate-meal', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ categoryKey, description })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        const serverErr = data?.error || `HTTP ${res.status}`;
+                        if (!localKey) {
+                            throw new Error(serverErr);
+                        }
+                    } else if (Array.isArray(data.items)) {
+                        cleanItems = data.items;
+                    }
+                }
+
+                if (cleanItems.length === 0) {
+                    if (!localKey) {
+                        throw new Error('Configura GEMINI_API_KEY en Vercel o en Perfil');
+                    }
+
+                    const prompt = `Analiza esta comida para el turno "${categoryKey}": "${description}". Devuelve un array JSON con cada alimento o componente indicado, estimando con realismo calorías totales, gramos de proteína, carbohidratos y grasas, cantidad y unidad ("grams" o "units"). Responde solo con JSON válido.`;
+                    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(localKey)}`;
+                    const directRes = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                responseMimeType: 'application/json',
+                                responseSchema: {
+                                    type: 'ARRAY',
+                                    items: {
+                                        type: 'OBJECT',
+                                        properties: {
+                                            name: { type: 'STRING' },
+                                            amount: { type: 'NUMBER' },
+                                            unit: { type: 'STRING', enum: ['grams', 'units'] },
+                                            kcal: { type: 'NUMBER' },
+                                            protein: { type: 'NUMBER' },
+                                            carbs: { type: 'NUMBER' },
+                                            fat: { type: 'NUMBER' }
+                                        },
+                                        required: ['name', 'amount', 'unit', 'kcal', 'protein', 'carbs', 'fat']
+                                    }
                                 }
                             }
-                        }
-                    })
-                });
+                        })
+                    });
 
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}`);
+                    const directData = await directRes.json().catch(() => ({}));
+                    if (!directRes.ok) {
+                        throw new Error(directData?.error?.message || `HTTP ${directRes.status}`);
+                    }
+
+                    const rawText = directData.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+                    const parsedItems = JSON.parse(rawText);
+                    if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
+                        showToast('Gemini no devolvió alimentos reconocibles', '⚠️');
+                        return;
+                    }
+
+                    cleanItems = parsedItems.map(it => ({
+                        name: String(it.name || description).trim(),
+                        brand: 'Gemini IA',
+                        amount: Number(it.amount) > 0 ? Number(it.amount) : 1,
+                        unit: it.unit === 'grams' ? 'grams' : 'units',
+                        kcal: Math.max(0, Math.round(Number(it.kcal) || 0)),
+                        protein: Math.max(0, Math.round((Number(it.protein) || 0) * 10) / 10),
+                        carbs: Math.max(0, Math.round((Number(it.carbs) || 0) * 10) / 10),
+                        fat: Math.max(0, Math.round((Number(it.fat) || 0) * 10) / 10)
+                    }));
                 }
-
-                const data = await res.json();
-                const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-                const parsedItems = JSON.parse(rawText);
-
-                if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
-                    showToast('Gemini no devolvió alimentos reconocibles', '⚠️');
-                    return;
-                }
-
-                const cleanItems = parsedItems.map(it => ({
-                    name: String(it.name || description).trim(),
-                    brand: 'Gemini IA',
-                    amount: Number(it.amount) > 0 ? Number(it.amount) : 1,
-                    unit: it.unit === 'grams' ? 'grams' : 'units',
-                    kcal: Math.max(0, Math.round(Number(it.kcal) || 0)),
-                    protein: Math.max(0, Math.round((Number(it.protein) || 0) * 10) / 10),
-                    carbs: Math.max(0, Math.round((Number(it.carbs) || 0) * 10) / 10),
-                    fat: Math.max(0, Math.round((Number(it.fat) || 0) * 10) / 10)
-                }));
 
                 appState.geminiCache[cacheKey] = cleanItems;
                 incorporateGeminiItemsToMeal(categoryKey, cleanItems);
@@ -1761,7 +1779,8 @@
                 showToast(`Incorporado (+${totalKcalAdded} kcal) con Gemini`, '✨');
             } catch (err) {
                 console.error('Error en Gemini meal estimation:', err);
-                showToast('Error al consultar Gemini. Revisa la API Key o conexión', '❌');
+                const detail = (err && err.message) ? err.message.slice(0, 95) : 'Error de conexión';
+                showToast(`Gemini: ${detail}`, '❌');
             } finally {
                 if (btnEl) {
                     btnEl.disabled = false;

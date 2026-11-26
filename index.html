@@ -2130,7 +2130,7 @@ Si el usuario no especifica cantidad, usa una ración estándar realista.`;
 
             for (let i = 0; i < startingDayOfWeek; i++) {
                 const emptyCell = document.createElement('div');
-                emptyCell.className = 'h-9 rounded-lg bg-slate-50/60';
+                emptyCell.className = 'h-10 rounded-lg bg-slate-50/60';
                 grid.appendChild(emptyCell);
             }
 
@@ -2141,15 +2141,15 @@ Si el usuario no especifica cantidad, usa una ración estándar realista.`;
                 const totals = calculateDayTotals(dateStr);
 
                 let cellBgClass = 'bg-slate-100 text-slate-600 hover:bg-slate-200';
-                let badgeDot = '<span class="w-1.5 h-1.5 rounded-full bg-slate-300 block mx-auto mt-0.5"></span>';
+                let kcalSubtext = '<span class="text-[9px] font-medium text-slate-400 leading-none mt-0.5">—</span>';
 
                 if (totals.hasEntries) {
                     if (totals.consumedKcal > totals.totalBudget) {
-                        cellBgClass = 'bg-rose-100 text-rose-800 border border-rose-300 font-bold hover:bg-rose-200';
-                        badgeDot = '<span class="w-1.5 h-1.5 rounded-full bg-rose-600 block mx-auto mt-0.5"></span>';
+                        cellBgClass = 'bg-rose-50/90 text-slate-800 border border-rose-200 hover:bg-rose-100/80';
+                        kcalSubtext = `<span class="text-[9px] font-extrabold text-rose-600 leading-none mt-0.5 tabular-nums">${totals.consumedKcal}</span>`;
                     } else {
-                        cellBgClass = 'bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold hover:bg-emerald-200';
-                        badgeDot = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-600 block mx-auto mt-0.5"></span>';
+                        cellBgClass = 'bg-emerald-50/90 text-slate-800 border border-emerald-200 hover:bg-emerald-100/80';
+                        kcalSubtext = `<span class="text-[9px] font-extrabold text-emerald-600 leading-none mt-0.5 tabular-nums">${totals.consumedKcal}</span>`;
                     }
                 }
 
@@ -2158,11 +2158,11 @@ Si el usuario no especifica cantidad, usa una ración estándar realista.`;
 
                 const dayCell = document.createElement('button');
                 dayCell.type = 'button';
-                dayCell.className = `h-8 rounded-lg flex flex-col items-center justify-center cursor-pointer transition text-[11px] relative ${cellBgClass} ${isSelected ? 'ring-2 ring-brand-700 z-10' : ''} ${isToday ? 'ring-2 ring-brand-500' : ''}`;
+                dayCell.className = `h-10 rounded-lg flex flex-col items-center justify-center cursor-pointer transition relative ${cellBgClass} ${isSelected ? 'ring-2 ring-brand-700 z-10' : ''} ${isToday ? 'ring-2 ring-brand-500' : ''}`;
                 dayCell.onclick = () => selectCalendarDate(dateStr);
                 dayCell.innerHTML = `
-                    <span class="leading-none text-[11px]">${day}</span>
-                    ${badgeDot}
+                    <span class="leading-none text-[11px] font-bold">${day}</span>
+                    ${kcalSubtext}
                 `;
                 grid.appendChild(dayCell);
             }

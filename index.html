@@ -777,6 +777,7 @@
         let customFoodMode = 'macros';
         let pendingMoveMeal = null;
         let cloningSourceCategory = null;
+        let presetMealCategoryForModal = null;
 
         window.onload = function() {
             loadFromStorage();
@@ -972,6 +973,13 @@
             const container = document.getElementById('mealsCategoryList');
             const moveBanner = document.getElementById('moveBanner');
 
+            // Preserve any in-progress text or active mic state when re-rendering
+            const preservedInputs = {};
+            MEAL_CATEGORIES.forEach(c => {
+                const el = document.getElementById(`geminiInput-${c.key}`);
+                if (el) preservedInputs[c.key] = el.value;
+            });
+
             if (pendingMoveMeal) {
                 const sourceCatObj = MEAL_CATEGORIES.find(c => c.key === pendingMoveMeal);
                 document.getElementById('moveBannerText').innerHTML = `<span class="font-bold">Mover ${sourceCatObj ? sourceCatObj.title : 'turno'}:</span> toca "Mover aquí" en el turno destino.`;
@@ -986,6 +994,7 @@
                 const catKcal = Math.round(items.reduce((acc, item) => acc + (item.kcal || 0), 0));
                 const isSourceMeal = pendingMoveMeal === cat.key;
                 const isTargetForMove = pendingMoveMeal && pendingMoveMeal !== cat.key;
+                const isMicOnThisMeal = manualMicActive && manualMicCategory === cat.key;
 
                 html += `
                     <div class="bg-white rounded-2xl p-4 shadow-sm border ${isSourceMeal ? 'border-brand-600 ring-2 ring-brand-200 bg-brand-50/20' : (isTargetForMove ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-100')} space-y-2.5 transition">
@@ -1014,15 +1023,25 @@
                             </div>
                         </div>
 
-                        <!-- Quick Gemini + Microphone Meal Estimator Bar -->
-                        <div class="bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 flex items-center gap-1.5">
-                            <input type="text" id="geminiInput-${cat.key}" placeholder="Dicta o escribe ${cat.title.toLowerCase()} (ej: tortilla 2 huevos y tostada)..." onkeydown="handleGeminiMealKey(event, '${cat.key}')" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                            <button type="button" id="micBtn-${cat.key}" onclick="startVoiceMealInput('${cat.key}')" title="Hablar por micrófono" aria-label="Hablar por micrófono" class="w-8 h-8 rounded-lg bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border border-slate-200 flex items-center justify-center text-sm shrink-0 transition active:scale-95">
-                                🎤
-                            </button>
-                            <button type="button" id="geminiBtn-${cat.key}" onclick="estimateAndAddMealWithGemini('${cat.key}')" title="Calcular calorías y macros con Gemini e incorporar" class="px-2.5 h-8 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-[11px] font-bold shrink-0 transition active:scale-95 flex items-center gap-1">
-                                <span>✨ IA</span>
-                            </button>
+                        <!-- Voice + Gemini + Add More Bar -->
+                        <div class="bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 space-y-2">
+                            <div class="flex items-center gap-1.5">
+                                <input type="text" id="geminiInput-${cat.key}" placeholder="Dicta o escribe ${cat.title.toLowerCase()} (ej: 2 huevos, tostada y café)..." onkeydown="handleGeminiMealKey(event, '${cat.key}')" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                <button type="button" id="micBtn-${cat.key}" onclick="toggleVoiceMealInput('${cat.key}')" title="${isMicOnThisMeal ? 'Pulsa para detener el micrófono' : 'Pulsa para hablar (no se corta solo)'}" aria-label="${isMicOnThisMeal ? 'Detener micrófono' : 'Iniciar micrófono'}" class="w-8 h-8 rounded-lg ${isMicOnThisMeal ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 'bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border-slate-200'} border flex items-center justify-center text-sm shrink-0 transition active:scale-95">
+                                    ${isMicOnThisMeal ? '⏹️' : '🎤'}
+                                </button>
+                                <button type="button" id="geminiBtn-${cat.key}" onclick="estimateAndAddMealWithGemini('${cat.key}')" title="Calcular calorías y macros con IA y guardar en ${cat.title}" class="px-2.5 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shrink-0 transition active:scale-95 flex items-center gap-1 shadow-2xs">
+                                    <span>✨ IA</span>
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 text-[11px]">
+                                <span id="micStatus-${cat.key}" class="${isMicOnThisMeal ? 'text-rose-600 font-semibold' : 'text-slate-400'} truncate">
+                                    ${isMicOnThisMeal ? 'Grabando... vuelve a pulsar el micro al terminar' : 'Pulsa 🎤 para hablar, ciérralo y pulsa ✨ IA'}
+                                </span>
+                                <button type="button" onclick="addMoreToMeal('${cat.key}')" class="text-[11px] font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg shrink-0 transition active:scale-95">
+                                    + Añadir más
+                                </button>
+                            </div>
                         </div>
 
                         ${items.length === 0 ? `
@@ -1054,6 +1073,13 @@
                 `;
             });
             container.innerHTML = html;
+
+            MEAL_CATEGORIES.forEach(c => {
+                const el = document.getElementById(`geminiInput-${c.key}`);
+                if (el && preservedInputs[c.key]) {
+                    el.value = preservedInputs[c.key];
+                }
+            });
         }
 
         // Two-tap whole-meal move between shifts
@@ -1337,10 +1363,14 @@
             `;
         }
 
-        function openAddFoodModal(item) {
+        function openAddFoodModal(item, categoryOverride = null) {
             selectedFoodForModal = item;
             document.getElementById('modalFoodTitle').textContent = item.name;
             document.getElementById('modalFoodSubtitle').textContent = `${item.brand ? item.brand + ' • ' : ''}Base 100g/unidad: ${item.kcal} kcal`;
+
+            if (categoryOverride) {
+                document.getElementById('modalMealCategory').value = categoryOverride;
+            }
 
             const unitSelect = document.getElementById('modalUnitType');
             const amountInput = document.getElementById('modalAmountInput');
@@ -1364,6 +1394,7 @@
         function closeFoodModal() {
             document.getElementById('addFoodModal').classList.add('hidden');
             selectedFoodForModal = null;
+            presetMealCategoryForModal = null;
         }
 
         function toggleUnitType() {
@@ -1456,7 +1487,8 @@
         }
 
         // Dual Custom Food Creation Modal
-        function openCustomFoodModal() {
+        function openCustomFoodModal(targetCategory = null) {
+            presetMealCategoryForModal = targetCategory;
             switchCustomFoodMode('macros');
             document.getElementById('custName').value = '';
             document.getElementById('custProt').value = '';
@@ -1469,6 +1501,7 @@
 
         function closeCustomFoodModal() {
             document.getElementById('customFoodModal').classList.add('hidden');
+            presetMealCategoryForModal = null;
         }
 
         function switchCustomFoodMode(mode) {
@@ -1531,10 +1564,11 @@
                 };
             }
 
+            const targetCat = presetMealCategoryForModal;
             appState.customCatalog.push(newFood);
             saveStorage();
             closeCustomFoodModal();
-            openAddFoodModal(newFood);
+            openAddFoodModal(newFood, targetCat);
             showToast('Alimento personalizado creado', '✨');
         }
 
@@ -1623,52 +1657,189 @@
             }
         }
 
+        // ================= MANUAL TOGGLE MICROPHONE (NO AUTO-CUT) + BEEP =================
         let activeSpeechRecognition = null;
+        let manualMicActive = false;
+        let manualMicCategory = null;
+        let micBaseText = '';
+        let micFinalText = '';
+        let micRestartTimer = null;
 
-        function startVoiceMealInput(categoryKey) {
+        function playMicCloseBeep() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(740, ctx.currentTime);
+                gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.15);
+                setTimeout(() => ctx.close().catch(() => {}), 250);
+            } catch (_) {}
+        }
+
+        function updateMicButtonsUI() {
+            MEAL_CATEGORIES.forEach(cat => {
+                const micBtn = document.getElementById(`micBtn-${cat.key}`);
+                const statusEl = document.getElementById(`micStatus-${cat.key}`);
+                const isThis = manualMicActive && manualMicCategory === cat.key;
+                if (micBtn) {
+                    micBtn.className = isThis
+                        ? 'w-8 h-8 rounded-lg bg-rose-600 text-white border border-rose-700 flex items-center justify-center text-sm shrink-0 animate-pulse'
+                        : 'w-8 h-8 rounded-lg bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border border-slate-200 flex items-center justify-center text-sm shrink-0 transition active:scale-95';
+                    micBtn.innerHTML = isThis ? '⏹️' : '🎤';
+                    micBtn.title = isThis ? 'Pulsa para detener el micrófono' : 'Pulsa para hablar (no se corta solo)';
+                }
+                if (statusEl) {
+                    statusEl.className = isThis ? 'text-rose-600 font-semibold truncate' : 'text-slate-400 truncate';
+                    statusEl.textContent = isThis
+                        ? 'Grabando... vuelve a pulsar el micro al terminar'
+                        : 'Pulsa 🎤 para hablar, ciérralo y pulsa ✨ IA';
+                }
+            });
+        }
+
+        function createRecognitionInstance(categoryKey) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'es-ES';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
+
+            recognition.onresult = function(event) {
+                const inputEl = document.getElementById(`geminiInput-${categoryKey}`);
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0]?.transcript || '';
+                    if (event.results[i].isFinal) {
+                        micFinalText = (micFinalText + ' ' + transcript).trim();
+                    } else {
+                        interim += ' ' + transcript;
+                    }
+                }
+                const combined = [micBaseText, micFinalText, interim.trim()].filter(Boolean).join(' ').trim();
+                if (inputEl) {
+                    inputEl.value = combined;
+                }
+            };
+
+            recognition.onerror = function(event) {
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    manualMicActive = false;
+                    manualMicCategory = null;
+                    updateMicButtonsUI();
+                    showToast('Permiso de micrófono denegado', '⚠️');
+                }
+            };
+
+            recognition.onend = function() {
+                // Keep listening until user taps the mic again to close it
+                if (manualMicActive && manualMicCategory === categoryKey) {
+                    micBaseText = (document.getElementById(`geminiInput-${categoryKey}`)?.value || '').trim();
+                    micFinalText = '';
+                    clearTimeout(micRestartTimer);
+                    micRestartTimer = setTimeout(() => {
+                        if (!manualMicActive || manualMicCategory !== categoryKey) return;
+                        try {
+                            const nextRec = createRecognitionInstance(categoryKey);
+                            activeSpeechRecognition = nextRec;
+                            nextRec.start();
+                        } catch (_) {}
+                    }, 120);
+                } else {
+                    activeSpeechRecognition = null;
+                    updateMicButtonsUI();
+                }
+            };
+
+            return recognition;
+        }
+
+        function toggleVoiceMealInput(categoryKey) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 showToast('Tu navegador no soporta dictado por voz', '⚠️');
                 return;
             }
 
+            // If already recording on this meal -> user clicked to close microphone
+            if (manualMicActive && manualMicCategory === categoryKey) {
+                manualMicActive = false;
+                manualMicCategory = null;
+                clearTimeout(micRestartTimer);
+                const rec = activeSpeechRecognition;
+                activeSpeechRecognition = null;
+                if (rec) {
+                    try { rec.stop(); } catch (_) {}
+                }
+                playMicCloseBeep();
+                updateMicButtonsUI();
+                showToast('Micrófono cerrado. Pulsa ✨ IA para calcular y guardar', '🔔');
+                return;
+            }
+
+            // Stop any previous recognition if switching meals
+            manualMicActive = false;
+            manualMicCategory = null;
+            clearTimeout(micRestartTimer);
             if (activeSpeechRecognition) {
                 try { activeSpeechRecognition.stop(); } catch (_) {}
                 activeSpeechRecognition = null;
             }
 
             const inputEl = document.getElementById(`geminiInput-${categoryKey}`);
-            const micBtn = document.getElementById(`micBtn-${categoryKey}`);
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'es-ES';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
+            micBaseText = (inputEl ? inputEl.value : '').trim();
+            micFinalText = '';
+            manualMicActive = true;
+            manualMicCategory = categoryKey;
 
+            const recognition = createRecognitionInstance(categoryKey);
             activeSpeechRecognition = recognition;
-            if (micBtn) micBtn.className = 'w-8 h-8 rounded-lg bg-rose-600 text-white border border-rose-700 flex items-center justify-center text-sm shrink-0 animate-pulse';
-            showToast('Escuchando... di qué has comido', '🎤');
+            updateMicButtonsUI();
 
-            recognition.onresult = function(event) {
-                const transcript = event.results?.[0]?.[0]?.transcript || '';
-                if (inputEl && transcript) {
-                    inputEl.value = transcript;
-                    estimateAndAddMealWithGemini(categoryKey);
-                }
-            };
-
-            recognition.onerror = function() {
-                showToast('No se pudo capturar el audio del micrófono', '⚠️');
-            };
-
-            recognition.onend = function() {
+            try {
+                recognition.start();
+                showToast('Micrófono abierto. Habla y vuelve a pulsarlo al acabar', '🎤');
+            } catch (_) {
+                manualMicActive = false;
+                manualMicCategory = null;
                 activeSpeechRecognition = null;
-                if (micBtn) micBtn.className = 'w-8 h-8 rounded-lg bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border border-slate-200 flex items-center justify-center text-sm shrink-0 transition active:scale-95';
-            };
+                updateMicButtonsUI();
+                showToast('No se pudo iniciar el micrófono', '⚠️');
+            }
+        }
 
-            recognition.start();
+        function addMoreToMeal(categoryKey) {
+            const inputEl = document.getElementById(`geminiInput-${categoryKey}`);
+            const currentText = (inputEl ? inputEl.value : '').trim();
+            if (currentText) {
+                estimateAndAddMealWithGemini(categoryKey);
+                return;
+            }
+            openCustomFoodModal(categoryKey);
         }
 
         async function estimateAndAddMealWithGemini(categoryKey) {
+            // If mic is still open on this meal, close it cleanly first
+            if (manualMicActive && manualMicCategory === categoryKey) {
+                manualMicActive = false;
+                manualMicCategory = null;
+                clearTimeout(micRestartTimer);
+                if (activeSpeechRecognition) {
+                    try { activeSpeechRecognition.stop(); } catch (_) {}
+                    activeSpeechRecognition = null;
+                }
+                playMicCloseBeep();
+                updateMicButtonsUI();
+            }
+
             const inputEl = document.getElementById(`geminiInput-${categoryKey}`);
             const btnEl = document.getElementById(`geminiBtn-${categoryKey}`);
             const description = (inputEl ? inputEl.value : '').trim();
@@ -1682,7 +1853,7 @@
             if (appState.geminiCache && appState.geminiCache[cacheKey]) {
                 incorporateGeminiItemsToMeal(categoryKey, appState.geminiCache[cacheKey]);
                 if (inputEl) inputEl.value = '';
-                showToast('Comida calculada (caché IA) e incorporada', '✨');
+                showToast('Comida calculada (caché IA) y guardada', '✨');
                 return;
             }
 
@@ -1714,7 +1885,7 @@
 
                 if (cleanItems.length === 0) {
                     if (!localKey) {
-                        throw new Error('Configura GEMINI_API_KEY en Vercel o en Perfil');
+                        throw new Error('Configura tu Gemini API Key en Perfil');
                     }
 
                     const prompt = `Analiza esta comida para el turno "${categoryKey}": "${description}". Devuelve un array JSON con cada alimento o componente indicado, estimando con realismo calorías totales, gramos de proteína, carbohidratos y grasas, cantidad y unidad ("grams" o "units"). Responde solo con JSON válido.`;
@@ -1774,17 +1945,19 @@
                 incorporateGeminiItemsToMeal(categoryKey, cleanItems);
                 saveStorage();
 
-                if (inputEl) inputEl.value = '';
+                const freshInput = document.getElementById(`geminiInput-${categoryKey}`);
+                if (freshInput) freshInput.value = '';
                 const totalKcalAdded = cleanItems.reduce((s, x) => s + x.kcal, 0);
-                showToast(`Incorporado (+${totalKcalAdded} kcal) con Gemini`, '✨');
+                showToast(`Guardado (+${totalKcalAdded} kcal) con IA`, '✨');
             } catch (err) {
                 console.error('Error en Gemini meal estimation:', err);
                 const detail = (err && err.message) ? err.message.slice(0, 95) : 'Error de conexión';
-                showToast(`Gemini: ${detail}`, '❌');
+                showToast(`IA: ${detail}`, '❌');
             } finally {
-                if (btnEl) {
-                    btnEl.disabled = false;
-                    btnEl.innerHTML = '<span>✨ IA</span>';
+                const freshBtn = document.getElementById(`geminiBtn-${categoryKey}`);
+                if (freshBtn) {
+                    freshBtn.disabled = false;
+                    freshBtn.innerHTML = '<span>✨ IA</span>';
                 }
             }
         }

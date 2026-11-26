@@ -436,7 +436,7 @@
                     <div class="pt-2 border-t border-slate-100 space-y-1.5">
                         <label class="block text-xs font-medium text-slate-700">Gemini API Key (Estimación por texto y voz)</label>
                         <input type="password" id="profGeminiKey" placeholder="AIza..." oninput="onGeminiKeyChanged(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                        <p class="text-[11px] text-slate-400">Se guarda en este dispositivo para calcular calorías y macros de cada comida o dictado por voz con Gemini.</p>
+                        <p class="text-[11px] text-slate-400">Se guarda en este dispositivo para calcular calorías y macros de cada comida o dictado por voz.</p>
                     </div>
 
                     <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl text-sm transition active:scale-95 shadow-sm">
@@ -1739,6 +1739,22 @@
             } catch (_) {}
         }
 
+        function stopActiveMicCleanly(withBeep = true) {
+            const wasActive = manualMicActive;
+            manualMicActive = false;
+            manualMicCategory = null;
+            clearTimeout(micRestartTimer);
+            const rec = activeSpeechRecognition;
+            activeSpeechRecognition = null;
+            if (rec) {
+                try { rec.onend = null; rec.stop(); } catch (_) {}
+            }
+            if (wasActive && withBeep) {
+                playMicCloseBeep();
+            }
+            updateMicButtonsUI();
+        }
+
         function updateMicButtonsUI() {
             MEAL_CATEGORIES.forEach(cat => {
                 const micBtn = document.getElementById(`micBtn-${cat.key}`);
@@ -1787,10 +1803,8 @@
 
             recognition.onerror = function(event) {
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    manualMicActive = false;
-                    manualMicCategory = null;
-                    updateMicButtonsUI();
-                    showToast('Permiso de micrófono denegado', '⚠️');
+                    stopActiveMicCleanly(false);
+                    showToast('Permiso de micrófono denegado en el navegador', '⚠️');
                 }
             };
 
@@ -1819,32 +1833,17 @@
         function toggleVoiceMealInput(categoryKey) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
-                showToast('Tu navegador no soporta dictado por voz', '⚠️');
+                showToast('Tu navegador no soporta dictado por voz. Escríbelo en la caja.', '⚠️');
                 return;
             }
 
             if (manualMicActive && manualMicCategory === categoryKey) {
-                manualMicActive = false;
-                manualMicCategory = null;
-                clearTimeout(micRestartTimer);
-                const rec = activeSpeechRecognition;
-                activeSpeechRecognition = null;
-                if (rec) {
-                    try { rec.stop(); } catch (_) {}
-                }
-                playMicCloseBeep();
-                updateMicButtonsUI();
+                stopActiveMicCleanly(true);
                 showToast('Micrófono cerrado. Pulsa ✨ IA para calcular y guardar', '🔔');
                 return;
             }
 
-            manualMicActive = false;
-            manualMicCategory = null;
-            clearTimeout(micRestartTimer);
-            if (activeSpeechRecognition) {
-                try { activeSpeechRecognition.stop(); } catch (_) {}
-                activeSpeechRecognition = null;
-            }
+            stopActiveMicCleanly(false);
 
             const inputEl = document.getElementById(`geminiInput-${categoryKey}`);
             micBaseText = (inputEl ? inputEl.value : '').trim();
@@ -1860,10 +1859,7 @@
                 recognition.start();
                 showToast('Micrófono abierto. Habla y vuelve a pulsarlo al acabar', '🎤');
             } catch (_) {
-                manualMicActive = false;
-                manualMicCategory = null;
-                activeSpeechRecognition = null;
-                updateMicButtonsUI();
+                stopActiveMicCleanly(false);
                 showToast('No se pudo iniciar el micrófono', '⚠️');
             }
         }
@@ -1878,66 +1874,17 @@
             openCustomFoodModal(categoryKey);
         }
 
-        // ================= GEMINI MULTI-MODEL + QUOTA HANDLING =================
-        function sleepMs(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
+        async function callGeminiNutritionModels(apiKey, prompt) {
+            const models = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-2.5-flash'];
+            let lastError = null;
 
-        function parseGeminiErrorMessage(status, rawBody, isTimeout = false) {
-            if (isTimeout) {
-                return 'Tiempo agotado (15s) esperando a Gemini. Reintenta en unos segundos.';
-            }
-
-            let apiMsg = '';
-            try {
-                const parsed = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
-                apiMsg = parsed?.error?.message || '';
-            } catch (_) {
-                apiMsg = typeof rawBody === 'string' ? rawBody : '';
-            }
-
-            if (status === 429) {
-                return apiMsg
-                    ? `Cuota 429: ${apiMsg}`
-                    : 'Límite de cuota o peticiones por minuto alcanzado en Gemini (429).';
-            }
-            if (status === 503 || status === 500 || status === 502 || status === 504) {
-                return `Servidor de Gemini ocupado o con carga puntual (${status}). Suele ser temporal.`;
-            }
-            if (status === 400 || status === 401 || status === 403) {
-                return `Error de clave API o permisos (${status}). Revisa tu Gemini API Key en Perfil.`;
-            }
-            if (status === 404) {
-                return apiMsg
-                    ? `Modelo no disponible (404): ${apiMsg}`
-                    : 'Modelo no disponible en ese endpoint (404).';
-            }
-
-            return apiMsg
-                ? `Error de Gemini (${status || 'red'}): ${apiMsg}`
-                : `Error de conexión con Gemini (${status || 'sin respuesta'}).`;
-        }
-
-        async function postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs = 15000) {
-            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(cleanKey)}`;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-            try {
-                const directRes = await fetch(endpoint, {
+            for (const modelName of models) {
+                const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    signal: controller.signal,
                     body: JSON.stringify({
-                        systemInstruction: {
-                            parts: [{
-                                text: 'Eres un nutricionista preciso. Responde EXCLUSIVAMENTE con un array JSON válido (sin markdown ni texto extra). Cada objeto debe tener: "name" (string), "amount" (number), "unit" ("grams" o "units"), "kcal" (number), "protein" (number en gramos), "carbs" (number en gramos), "fat" (number en gramos).'
-                            }]
-                        },
-                        contents: [{
-                            role: 'user',
-                            parts: [{ text: promptText }]
-                        }],
+                        contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: {
                             temperature: 0.2,
                             responseMimeType: 'application/json',
@@ -1961,123 +1908,31 @@
                     })
                 });
 
-                clearTimeout(timeoutId);
-                const rawText = await directRes.text();
-
-                if (!directRes.ok) {
-                    const err = new Error(parseGeminiErrorMessage(directRes.status, rawText, false));
-                    err.status = directRes.status;
-                    throw err;
-                }
-
-                let directData;
-                try {
-                    directData = JSON.parse(rawText);
-                } catch (_) {
-                    throw new Error('Gemini devolvió una respuesta no válida.');
-                }
-
-                const candidateText = (directData.candidates?.[0]?.content?.parts || [])
-                    .map(p => p.text || '')
-                    .join('\n')
-                    .trim();
-
-                if (!candidateText) {
-                    const finishReason = directData.candidates?.[0]?.finishReason || 'sin contenido';
-                    throw new Error(`Gemini no devolvió alimentos (${finishReason}).`);
-                }
-
-                const cleanedJson = candidateText
-                    .replace(/^```json\s*/i, '')
-                    .replace(/^```\s*/i, '')
-                    .replace(/```$/i, '')
-                    .trim();
-
-                const jsonMatch = cleanedJson.match(/\[[\s\S]*\]/);
-                let parsedItems;
-                try {
-                    parsedItems = JSON.parse(jsonMatch ? jsonMatch[0] : cleanedJson);
-                } catch (_) {
-                    throw new Error('No se pudo leer el formato JSON de los alimentos.');
-                }
-
-                const list = Array.isArray(parsedItems)
-                    ? parsedItems
-                    : (Array.isArray(parsedItems?.items) ? parsedItems.items : []);
-
-                if (!list.length) {
-                    throw new Error('Gemini no devolvió alimentos reconocibles');
-                }
-
-                return list.map(it => ({
-                    name: String(it.name || 'Alimento').trim(),
-                    brand: `Gemini (${modelName})`,
-                    amount: Number(it.amount) > 0 ? Number(it.amount) : 1,
-                    unit: it.unit === 'grams' ? 'grams' : 'units',
-                    kcal: Math.max(0, Math.round(Number(it.kcal) || 0)),
-                    protein: Math.max(0, Math.round((Number(it.protein) || 0) * 10) / 10),
-                    carbs: Math.max(0, Math.round((Number(it.carbs) || 0) * 10) / 10),
-                    fat: Math.max(0, Math.round((Number(it.fat) || 0) * 10) / 10)
-                }));
-            } catch (err) {
-                clearTimeout(timeoutId);
-                if (err?.name === 'AbortError') {
-                    const tErr = new Error(parseGeminiErrorMessage(0, '', true));
-                    tErr.isTimeout = true;
-                    throw tErr;
-                }
-                throw err;
-            }
-        }
-
-        async function callGeminiFlash25(apiKey, promptText, timeoutMs = 15000) {
-            const cleanKey = (apiKey || '').trim();
-            if (!cleanKey) {
-                throw new Error('Configura tu Gemini API Key en Perfil');
-            }
-
-            const candidateModels = [
-                'gemini-2.0-flash-lite',
-                'gemini-flash-latest',
-                'gemini-2.0-flash',
-                'gemini-2.5-flash'
-            ];
-
-            let lastError = null;
-
-            for (const modelName of candidateModels) {
-                try {
-                    return await postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs);
-                } catch (err) {
-                    lastError = err;
-                    if (err?.status === 401 || err?.status === 403) {
-                        throw err;
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+                    const parsed = JSON.parse(rawText);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        return parsed;
                     }
-                    if (err?.status === 429) {
-                        await sleepMs(1500);
-                        try {
-                            return await postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs);
-                        } catch (retryErr) {
-                            lastError = retryErr;
-                        }
-                    }
+                    lastError = new Error('Respuesta vacía de Gemini');
+                    continue;
+                }
+
+                const msg = data?.error?.message || `HTTP ${res.status}`;
+                lastError = new Error(`${modelName}: ${msg}`);
+                if (res.status === 400 && msg.toLowerCase().includes('api key')) {
+                    throw lastError;
                 }
             }
 
-            throw lastError || new Error('Ningún modelo de Gemini respondió en este endpoint.');
+            throw lastError || new Error('No se pudo obtener respuesta de Gemini');
         }
 
         async function estimateAndAddMealWithGemini(categoryKey) {
             if (manualMicActive && manualMicCategory === categoryKey) {
-                manualMicActive = false;
-                manualMicCategory = null;
-                clearTimeout(micRestartTimer);
-                if (activeSpeechRecognition) {
-                    try { activeSpeechRecognition.stop(); } catch (_) {}
-                    activeSpeechRecognition = null;
-                }
-                playMicCloseBeep();
-                updateMicButtonsUI();
+                stopActiveMicCleanly(true);
+                await new Promise(resolve => setTimeout(resolve, 180));
             }
 
             const inputEl = document.getElementById(`geminiInput-${categoryKey}`);
@@ -2085,12 +1940,12 @@
             const description = (inputEl ? inputEl.value : '').trim();
 
             if (!description) {
-                showToast('Escribe o dicta lo que has tomado en este turno', '⚠️');
+                showToast('Dicta o escribe primero lo que has comido', '⚠️');
                 return;
             }
 
-            const cacheKey = `${categoryKey}::${description.toLowerCase()}`;
-            if (appState.geminiCache && appState.geminiCache[cacheKey]) {
+            const cacheKey = `v2::${categoryKey}::${description.toLowerCase()}`;
+            if (appState.geminiCache && Array.isArray(appState.geminiCache[cacheKey]) && appState.geminiCache[cacheKey].length > 0) {
                 const cachedItems = appState.geminiCache[cacheKey];
                 aiFeedbackByMeal[`${appState.currentDate}::${categoryKey}`] = {
                     items: JSON.parse(JSON.stringify(cachedItems))
@@ -2098,60 +1953,44 @@
                 incorporateGeminiItemsToMeal(categoryKey, cachedItems);
                 const freshInput = document.getElementById(`geminiInput-${categoryKey}`);
                 if (freshInput) freshInput.value = '';
-                showToast('Comida calculada (caché IA) y guardada', '✨');
+                const totalKcalCached = cachedItems.reduce((s, x) => s + (x.kcal || 0), 0);
+                showToast(`Guardado (+${totalKcalCached} kcal) con IA`, '✨');
                 return;
             }
 
             if (btnEl) {
                 btnEl.disabled = true;
-                btnEl.dataset.prevHtml = btnEl.innerHTML;
                 btnEl.innerHTML = '<span>...</span>';
             }
 
             try {
                 const localKey = (appState.geminiApiKey || window.GEMINI_API_KEY || '').trim();
-                let cleanItems = [];
-
-                if (!localKey && window.location.protocol !== 'file:') {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000);
-                    try {
-                        const res = await fetch('/api/estimate-meal', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            signal: controller.signal,
-                            body: JSON.stringify({ categoryKey, description })
-                        });
-                        clearTimeout(timeoutId);
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok) {
-                            throw new Error(parseGeminiErrorMessage(res.status, data, false));
-                        }
-                        if (Array.isArray(data.items) && data.items.length > 0) {
-                            cleanItems = data.items.map(it => ({
-                                name: String(it.name || description).trim(),
-                                brand: it.brand || 'Gemini IA',
-                                amount: Number(it.amount) > 0 ? Number(it.amount) : 1,
-                                unit: it.unit === 'grams' ? 'grams' : 'units',
-                                kcal: Math.max(0, Math.round(Number(it.kcal) || 0)),
-                                protein: Math.max(0, Math.round((Number(it.protein) || 0) * 10) / 10),
-                                carbs: Math.max(0, Math.round((Number(it.carbs) || 0) * 10) / 10),
-                                fat: Math.max(0, Math.round((Number(it.fat) || 0) * 10) / 10)
-                            }));
-                        }
-                    } catch (proxyErr) {
-                        clearTimeout(timeoutId);
-                        if (proxyErr?.name === 'AbortError') {
-                            throw new Error(parseGeminiErrorMessage(0, '', true));
-                        }
-                        throw proxyErr;
-                    }
+                if (!localKey) {
+                    throw new Error('Pon tu Gemini API Key en la pestaña Perfil');
                 }
 
-                if (cleanItems.length === 0) {
-                    const prompt = `Analiza esta comida para el turno "${categoryKey}": "${description}". Devuelve un array JSON con cada alimento o componente indicado, estimando con realismo calorías totales, gramos de proteína, carbohidratos y grasas, cantidad y unidad ("grams" o "units"). Responde solo con JSON válido.`;
-                    cleanItems = await callGeminiFlash25(localKey, prompt, 15000);
-                }
+                const prompt = `Eres un nutricionista deportivo. Analiza lo que ha comido el usuario en "${categoryKey}": "${description}".
+Devuelve un array JSON donde cada elemento tenga:
+- "name": nombre claro del alimento en español (ej: "Pechuga de pollo a la plancha").
+- "amount": cantidad numérica estimada (ej: 200 o 2).
+- "unit": "grams" si es peso/volumen o "units" si es por unidades/raciones.
+- "kcal": calorías totales estimadas de esa porción (número entero).
+- "protein": gramos de proteína (1 decimal).
+- "carbs": gramos de carbohidratos (1 decimal).
+- "fat": gramos de grasas (1 decimal).
+Si el usuario no especifica cantidad, usa una ración estándar realista.`;
+
+                const parsedItems = await callGeminiNutritionModels(localKey, prompt);
+                const cleanItems = parsedItems.map(it => ({
+                    name: String(it.name || description).trim(),
+                    brand: 'Gemini IA',
+                    amount: Number(it.amount) > 0 ? Number(it.amount) : 1,
+                    unit: it.unit === 'grams' ? 'grams' : 'units',
+                    kcal: Math.max(0, Math.round(Number(it.kcal) || 0)),
+                    protein: Math.max(0, Math.round((Number(it.protein) || 0) * 10) / 10),
+                    carbs: Math.max(0, Math.round((Number(it.carbs) || 0) * 10) / 10),
+                    fat: Math.max(0, Math.round((Number(it.fat) || 0) * 10) / 10)
+                }));
 
                 appState.geminiCache[cacheKey] = cleanItems;
                 aiFeedbackByMeal[`${appState.currentDate}::${categoryKey}`] = {
@@ -2166,13 +2005,13 @@
                 showToast(`Guardado (+${totalKcalAdded} kcal) con IA`, '✨');
             } catch (err) {
                 console.error('Error en Gemini meal estimation:', err);
-                const detail = (err && err.message) ? err.message.slice(0, 140) : 'Error de conexión';
-                showToast(`IA: ${detail}`, '❌');
+                const detail = (err && err.message) ? err.message.slice(0, 110) : 'Error al conectar con Gemini';
+                showToast(detail, '❌');
             } finally {
                 const freshBtn = document.getElementById(`geminiBtn-${categoryKey}`);
                 if (freshBtn) {
                     freshBtn.disabled = false;
-                    freshBtn.innerHTML = freshBtn.dataset.prevHtml || '<span>✨ IA</span>';
+                    freshBtn.innerHTML = '<span>✨ IA</span>';
                 }
             }
         }
@@ -2266,6 +2105,7 @@
             }
         }
 
+        // ================= SINGLE-SCREEN CALENDAR =================
         function changeCalendarMonth(deltaMonths) {
             appState.calendarViewDate.setMonth(appState.calendarViewDate.getMonth() + deltaMonths);
             renderCalendar();
@@ -2362,6 +2202,7 @@
             }
         }
 
+        // ================= BACKUP (nutriapp.json) =================
         function exportBackupToFile() {
             const dataToExport = {
                 version: '1.1',
@@ -2494,7 +2335,7 @@
             clearTimeout(window._toastTimer);
             window._toastTimer = setTimeout(() => {
                 toast.classList.add('hidden');
-            }, 4000);
+            }, 3000);
         }
     </script>
 </body>

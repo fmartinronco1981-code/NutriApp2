@@ -1245,30 +1245,35 @@
 
         function saveMealAsTemplate(categoryKey) {
             const catObj = MEAL_CATEGORIES.find(c => c.key === categoryKey);
-            const sourceItems = getDayLog(appState.currentDate).meals[categoryKey] || [];
+            const rawItems = getDayLog(appState.currentDate).meals[categoryKey];
+            const sourceItems = Array.isArray(rawItems) ? rawItems : (rawItems ? [rawItems] : []);
             if (sourceItems.length === 0) {
                 showToast(`Añade alimentos a ${catObj ? catObj.title : categoryKey} antes de guardar`, '⚠️');
                 return;
             }
 
-            const totalKcal = Math.round(sourceItems.reduce((s, it) => s + (it.kcal || 0), 0));
+            const clonedItems = sourceItems.map(it => JSON.parse(JSON.stringify(it)));
+            const totalKcal = Math.round(clonedItems.reduce((s, it) => s + (Number(it.kcal) || 0), 0));
             const labelBase = catObj ? catObj.title : categoryKey;
-            const summaryNames = sourceItems.slice(0, 2).map(it => it.name).join(', ');
-            const tplName = `${labelBase}: ${summaryNames}${sourceItems.length > 2 ? '...' : ''}`;
+            const summaryNames = clonedItems.map(it => it.name).filter(Boolean).join(', ');
+            const tplName = `${labelBase}: ${summaryNames}`;
 
             appState.mealTemplates.unshift({
-                id: 'tpl-' + Date.now(),
+                id: 'tpl-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
                 name: tplName,
                 category: categoryKey,
                 kcal: totalKcal,
-                items: JSON.parse(JSON.stringify(sourceItems))
+                items: clonedItems
             });
 
             saveStorage();
-            showToast('Comida guardada en Favoritas', '★');
+            showToast(`${labelBase} completo (${clonedItems.length} alimentos) guardado en Favoritas`, '★');
         }
 
         function openFavoritesModal() {
+            const currentCat = MEAL_CATEGORIES[activeMealIndex]?.key || 'desayuno';
+            const sel = document.getElementById('favTargetCategory');
+            if (sel) sel.value = currentCat;
             renderFavoritesList();
             document.getElementById('favoritesModal').classList.remove('hidden');
         }
@@ -1280,15 +1285,19 @@
         function renderFavoritesList() {
             const container = document.getElementById('favoritesListContainer');
             if (!appState.mealTemplates || appState.mealTemplates.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 italic py-4 text-center">Aún no has guardado comidas favoritas. Usa "★ Guardar" en cualquier turno de comida.</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-400 italic py-4 text-center">Aún no has guardado comidas favoritas. Usa "★" en cualquier turno de comida.</p>`;
                 return;
             }
 
-            container.innerHTML = appState.mealTemplates.map((tpl, idx) => `
+            container.innerHTML = appState.mealTemplates.map((tpl, idx) => {
+                const tplItems = Array.isArray(tpl.items) ? tpl.items : [];
+                const detailNames = tplItems.map(it => `${it.name} (${it.amount}${it.unit === 'grams' ? 'g' : 'ud'})`).join(' · ');
+                return `
                 <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
                     <div class="min-w-0">
                         <div class="font-bold text-xs text-slate-800 truncate">${tpl.name}</div>
-                        <div class="text-[11px] text-slate-500">${tpl.items.length} alimento(s) · <strong class="text-brand-700">${tpl.kcal} kcal</strong></div>
+                        <div class="text-[10px] text-slate-500 truncate mt-0.5">${detailNames}</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">${tplItems.length} alimento(s) · <strong class="text-brand-700">${tpl.kcal} kcal</strong></div>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         <button type="button" onclick="applyFavoriteTemplate(${idx})" class="text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white px-2.5 py-1.5 rounded-lg transition active:scale-95">
@@ -1299,19 +1308,32 @@
                         </button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         function applyFavoriteTemplate(index) {
             const tpl = appState.mealTemplates[index];
             if (!tpl) return;
+            const tplItems = Array.isArray(tpl.items) ? tpl.items : [];
+            if (tplItems.length === 0) {
+                showToast('Esta favorita no tiene alimentos', '⚠️');
+                return;
+            }
             const targetCat = document.getElementById('favTargetCategory').value || tpl.category || 'desayuno';
             const dayLog = getDayLog(appState.currentDate);
-            dayLog.meals[targetCat].push(...JSON.parse(JSON.stringify(tpl.items)));
+            if (!Array.isArray(dayLog.meals[targetCat])) {
+                dayLog.meals[targetCat] = [];
+            }
+            const itemsToInsert = tplItems.map(it => JSON.parse(JSON.stringify(it)));
+            dayLog.meals[targetCat].push(...itemsToInsert);
+
+            const catIdx = MEAL_CATEGORIES.findIndex(c => c.key === targetCat);
+            if (catIdx >= 0) activeMealIndex = catIdx;
+
             saveStorage();
             closeFavoritesModal();
             renderApp();
-            showToast('Favorita añadida al diario', '✅');
+            showToast(`Añadidos ${itemsToInsert.length} alimentos al turno`, '✅');
         }
 
         function deleteFavoriteTemplate(index) {

@@ -2146,10 +2146,10 @@ Si el usuario no especifica cantidad, usa una ración estándar realista.`;
                 if (totals.hasEntries) {
                     if (totals.consumedKcal > totals.totalBudget) {
                         cellBgClass = 'bg-rose-50/90 text-slate-800 border border-rose-200 hover:bg-rose-100/80';
-                        kcalSubtext = `<span class="text-[9px] font-extrabold text-rose-600 leading-none mt-0.5 tabular-nums">${totals.consumedKcal}</span>`;
+                        kcalSubtext = `<span class="text-[8px] font-extrabold text-rose-600 leading-none mt-0.5 tabular-nums whitespace-nowrap">${totals.consumedKcal} kcal</span>`;
                     } else {
                         cellBgClass = 'bg-emerald-50/90 text-slate-800 border border-emerald-200 hover:bg-emerald-100/80';
-                        kcalSubtext = `<span class="text-[9px] font-extrabold text-emerald-600 leading-none mt-0.5 tabular-nums">${totals.consumedKcal}</span>`;
+                        kcalSubtext = `<span class="text-[8px] font-extrabold text-emerald-600 leading-none mt-0.5 tabular-nums whitespace-nowrap">${totals.consumedKcal} kcal</span>`;
                     }
                 }
 

@@ -436,7 +436,7 @@
                     <div class="pt-2 border-t border-slate-100 space-y-1.5">
                         <label class="block text-xs font-medium text-slate-700">Gemini API Key (Estimación por texto y voz)</label>
                         <input type="password" id="profGeminiKey" placeholder="AIza..." oninput="onGeminiKeyChanged(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                        <p class="text-[11px] text-slate-400">Se guarda en este dispositivo para usar <code class="text-slate-600">gemini-2.5-flash</code> y calcular calorías y macros de cada comida o dictado por voz.</p>
+                        <p class="text-[11px] text-slate-400">Se guarda en este dispositivo para usar <code class="text-slate-600">gemini-2.5-flash</code> y modelos compatibles para calcular calorías y macros de cada comida o dictado por voz.</p>
                     </div>
 
                     <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl text-sm transition active:scale-95 shadow-sm">
@@ -1887,10 +1887,10 @@
             openCustomFoodModal(categoryKey);
         }
 
-        // ================= GEMINI 2.5 FLASH + ERROR HANDLING =================
+        // ================= GEMINI MULTI-MODEL + ERROR HANDLING =================
         function parseGeminiErrorMessage(status, rawBody, isTimeout = false) {
             if (isTimeout) {
-                return 'Tiempo agotado (15s) esperando a Gemini 2.5 Flash. Reintenta en unos segundos.';
+                return 'Tiempo agotado (15s) esperando a Gemini. Reintenta en unos segundos.';
             }
 
             let apiMsg = '';
@@ -1911,7 +1911,9 @@
                 return `Error de clave API o permisos (${status}). Revisa tu Gemini API Key en Perfil.`;
             }
             if (status === 404) {
-                return 'Modelo gemini-2.5-flash no disponible en ese endpoint (404).';
+                return apiMsg
+                    ? `Modelo no disponible (404): ${apiMsg}`
+                    : 'Modelo no disponible en ese endpoint (404).';
             }
 
             return apiMsg
@@ -1919,13 +1921,30 @@
                 : `Error de conexión con Gemini (${status || 'sin respuesta'}).`;
         }
 
-        async function callGeminiFlash25(apiKey, promptText, timeoutMs = 15000) {
-            const cleanKey = (apiKey || '').trim();
-            if (!cleanKey) {
-                throw new Error('Configura tu Gemini API Key en Perfil');
-            }
+        async function fetchAvailableGeminiModels(cleanKey, timeoutMs = 8000) {
+            const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(cleanKey)}`;
+            try {
+                const res = await fetch(listUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) return [];
+                const data = await res.json().catch(() => ({}));
+                const models = Array.isArray(data.models) ? data.models : [];
+
+                return models
+                    .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+                    .map(m => String(m.name || '').replace(/^models\//, ''))
+                    .filter(name => name.toLowerCase().includes('gemini') && !name.toLowerCase().includes('embedding'));
+            } catch (_) {
+                clearTimeout(timeoutId);
+                return [];
+            }
+        }
+
+        async function postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs = 15000) {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(cleanKey)}`;
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -1971,7 +1990,9 @@
                 const rawText = await directRes.text();
 
                 if (!directRes.ok) {
-                    throw new Error(parseGeminiErrorMessage(directRes.status, rawText, false));
+                    const err = new Error(parseGeminiErrorMessage(directRes.status, rawText, false));
+                    err.status = directRes.status;
+                    throw err;
                 }
 
                 let directData;
@@ -2015,7 +2036,7 @@
 
                 return list.map(it => ({
                     name: String(it.name || 'Alimento').trim(),
-                    brand: 'Gemini 2.5 Flash',
+                    brand: `Gemini (${modelName})`,
                     amount: Number(it.amount) > 0 ? Number(it.amount) : 1,
                     unit: it.unit === 'grams' ? 'grams' : 'units',
                     kcal: Math.max(0, Math.round(Number(it.kcal) || 0)),
@@ -2026,10 +2047,55 @@
             } catch (err) {
                 clearTimeout(timeoutId);
                 if (err?.name === 'AbortError') {
-                    throw new Error(parseGeminiErrorMessage(0, '', true));
+                    const tErr = new Error(parseGeminiErrorMessage(0, '', true));
+                    tErr.isTimeout = true;
+                    throw tErr;
                 }
                 throw err;
             }
+        }
+
+        async function callGeminiFlash25(apiKey, promptText, timeoutMs = 15000) {
+            const cleanKey = (apiKey || '').trim();
+            if (!cleanKey) {
+                throw new Error('Configura tu Gemini API Key en Perfil');
+            }
+
+            const fallbackModels = [
+                'gemini-flash-latest',
+                'gemini-2.0-flash',
+                'gemini-2.0-flash-lite',
+                'gemini-2.5-flash'
+            ];
+
+            let lastError = null;
+
+            for (const modelName of fallbackModels) {
+                try {
+                    return await postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs);
+                } catch (err) {
+                    lastError = err;
+                    if (err?.status === 401 || err?.status === 403 || err?.status === 429) {
+                        throw err;
+                    }
+                }
+            }
+
+            const discoveredModels = await fetchAvailableGeminiModels(cleanKey, 8000);
+            const extraModels = discoveredModels.filter(m => !fallbackModels.includes(m)).slice(0, 4);
+
+            for (const modelName of extraModels) {
+                try {
+                    return await postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs);
+                } catch (err) {
+                    lastError = err;
+                    if (err?.status === 401 || err?.status === 403 || err?.status === 429) {
+                        throw err;
+                    }
+                }
+            }
+
+            throw lastError || new Error('Ningún modelo de Gemini respondió en este endpoint.');
         }
 
         async function estimateAndAddMealWithGemini(categoryKey) {
@@ -2077,7 +2143,7 @@
                 const localKey = (appState.geminiApiKey || window.GEMINI_API_KEY || '').trim();
                 let cleanItems = [];
 
-                if (window.location.protocol !== 'file:') {
+                if (!localKey && window.location.protocol !== 'file:') {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 15000);
                     try {
@@ -2090,14 +2156,12 @@
                         clearTimeout(timeoutId);
                         const data = await res.json().catch(() => ({}));
                         if (!res.ok) {
-                            const serverErr = parseGeminiErrorMessage(res.status, data, false);
-                            if (!localKey) {
-                                throw new Error(serverErr);
-                            }
-                        } else if (Array.isArray(data.items) && data.items.length > 0) {
+                            throw new Error(parseGeminiErrorMessage(res.status, data, false));
+                        }
+                        if (Array.isArray(data.items) && data.items.length > 0) {
                             cleanItems = data.items.map(it => ({
                                 name: String(it.name || description).trim(),
-                                brand: it.brand || 'Gemini 2.5 Flash',
+                                brand: it.brand || 'Gemini IA',
                                 amount: Number(it.amount) > 0 ? Number(it.amount) : 1,
                                 unit: it.unit === 'grams' ? 'grams' : 'units',
                                 kcal: Math.max(0, Math.round(Number(it.kcal) || 0)),
@@ -2108,12 +2172,10 @@
                         }
                     } catch (proxyErr) {
                         clearTimeout(timeoutId);
-                        if (!localKey) {
-                            if (proxyErr?.name === 'AbortError') {
-                                throw new Error(parseGeminiErrorMessage(0, '', true));
-                            }
-                            throw proxyErr;
+                        if (proxyErr?.name === 'AbortError') {
+                            throw new Error(parseGeminiErrorMessage(0, '', true));
                         }
+                        throw proxyErr;
                     }
                 }
 
@@ -2132,9 +2194,9 @@
                 const freshInput = document.getElementById(`geminiInput-${categoryKey}`);
                 if (freshInput) freshInput.value = '';
                 const totalKcalAdded = cleanItems.reduce((s, x) => s + x.kcal, 0);
-                showToast(`Guardado (+${totalKcalAdded} kcal) con Gemini 2.5 Flash`, '✨');
+                showToast(`Guardado (+${totalKcalAdded} kcal) con IA`, '✨');
             } catch (err) {
-                console.error('Error en Gemini 2.5 Flash meal estimation:', err);
+                console.error('Error en Gemini meal estimation:', err);
                 const detail = (err && err.message) ? err.message.slice(0, 125) : 'Error de conexión';
                 showToast(`IA: ${detail}`, '❌');
             } finally {

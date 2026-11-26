@@ -436,7 +436,7 @@
                     <div class="pt-2 border-t border-slate-100 space-y-1.5">
                         <label class="block text-xs font-medium text-slate-700">Gemini API Key (Estimación por texto y voz)</label>
                         <input type="password" id="profGeminiKey" placeholder="AIza..." oninput="onGeminiKeyChanged(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                        <p class="text-[11px] text-slate-400">Se guarda en este dispositivo para usar <code class="text-slate-600">gemini-2.5-flash</code> y modelos compatibles para calcular calorías y macros de cada comida o dictado por voz.</p>
+                        <p class="text-[11px] text-slate-400">Se guarda en este dispositivo para calcular calorías y macros de cada comida o dictado por voz con Gemini.</p>
                     </div>
 
                     <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl text-sm transition active:scale-95 shadow-sm">
@@ -781,7 +781,6 @@
         let pendingMoveMeal = null;
         let cloningSourceCategory = null;
         let presetMealCategoryForModal = null;
-        // Stores latest AI calculation feedback per meal category for the active day
         let aiFeedbackByMeal = {};
 
         window.onload = function() {
@@ -1146,7 +1145,6 @@
             });
         }
 
-        // Two-tap whole-meal move between shifts
         function startMoveMeal(fromCategory) {
             const dayLog = getDayLog(appState.currentDate);
             const items = dayLog.meals[fromCategory] || [];
@@ -1189,7 +1187,6 @@
             showToast(`${movedFromObj ? movedFromObj.title : 'Turno'} movido a ${movedToObj ? movedToObj.title : targetCategory}`, '✅');
         }
 
-        // Meal cloning modal
         function openCloneMealModal(categoryKey) {
             const catObj = MEAL_CATEGORIES.find(c => c.key === categoryKey);
             const dayLog = getDayLog(appState.currentDate);
@@ -1232,7 +1229,6 @@
             showToast(`Turno clonado a ${targetDate}`, '📋');
         }
 
-        // Saved meal templates (Favoritas)
         function saveMealAsTemplate(categoryKey) {
             const catObj = MEAL_CATEGORIES.find(c => c.key === categoryKey);
             const sourceItems = getDayLog(appState.currentDate).meals[categoryKey] || [];
@@ -1311,7 +1307,6 @@
             showToast('Favorita eliminada', '🗑️');
         }
 
-        // Online Food Search
         async function searchFood() {
             const query = document.getElementById('foodSearchInput').value.trim();
             if (!query) return;
@@ -1550,7 +1545,6 @@
             }
         }
 
-        // Dual Custom Food Creation Modal
         function openCustomFoodModal(targetCategory = null) {
             presetMealCategoryForModal = targetCategory;
             switchCustomFoodMode('macros');
@@ -1636,7 +1630,6 @@
             showToast('Alimento personalizado creado', '✨');
         }
 
-        // Steps Handling
         function saveStepsDirectly() {
             const rawVal = document.getElementById('inputSteps').value;
             const dayLog = getDayLog(appState.currentDate);
@@ -1645,7 +1638,6 @@
             renderApp();
         }
 
-        // Exercise Handling
         function addExercise(e) {
             e.preventDefault();
             let name = document.getElementById('exName').value.trim();
@@ -1696,7 +1688,6 @@
             `).join('');
         }
 
-        // Profile & Goal Focus Badge
         function populateProfileUI() {
             const p = appState.profile;
             document.getElementById('profSex').value = p.sex || 'male';
@@ -1887,7 +1878,11 @@
             openCustomFoodModal(categoryKey);
         }
 
-        // ================= GEMINI MULTI-MODEL + ERROR HANDLING =================
+        // ================= GEMINI MULTI-MODEL + QUOTA HANDLING =================
+        function sleepMs(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
         function parseGeminiErrorMessage(status, rawBody, isTimeout = false) {
             if (isTimeout) {
                 return 'Tiempo agotado (15s) esperando a Gemini. Reintenta en unos segundos.';
@@ -1902,7 +1897,9 @@
             }
 
             if (status === 429) {
-                return 'Límite de cuota o peticiones por minuto alcanzado en Gemini (429). Espera un momento y reintenta.';
+                return apiMsg
+                    ? `Cuota 429: ${apiMsg}`
+                    : 'Límite de cuota o peticiones por minuto alcanzado en Gemini (429).';
             }
             if (status === 503 || status === 500 || status === 502 || status === 504) {
                 return `Servidor de Gemini ocupado o con carga puntual (${status}). Suele ser temporal.`;
@@ -1919,28 +1916,6 @@
             return apiMsg
                 ? `Error de Gemini (${status || 'red'}): ${apiMsg}`
                 : `Error de conexión con Gemini (${status || 'sin respuesta'}).`;
-        }
-
-        async function fetchAvailableGeminiModels(cleanKey, timeoutMs = 8000) {
-            const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-            try {
-                const res = await fetch(listUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!res.ok) return [];
-                const data = await res.json().catch(() => ({}));
-                const models = Array.isArray(data.models) ? data.models : [];
-
-                return models
-                    .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
-                    .map(m => String(m.name || '').replace(/^models\//, ''))
-                    .filter(name => name.toLowerCase().includes('gemini') && !name.toLowerCase().includes('embedding'));
-            } catch (_) {
-                clearTimeout(timeoutId);
-                return [];
-            }
         }
 
         async function postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs = 15000) {
@@ -2061,36 +2036,30 @@
                 throw new Error('Configura tu Gemini API Key en Perfil');
             }
 
-            const fallbackModels = [
+            const candidateModels = [
+                'gemini-2.0-flash-lite',
                 'gemini-flash-latest',
                 'gemini-2.0-flash',
-                'gemini-2.0-flash-lite',
                 'gemini-2.5-flash'
             ];
 
             let lastError = null;
 
-            for (const modelName of fallbackModels) {
+            for (const modelName of candidateModels) {
                 try {
                     return await postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs);
                 } catch (err) {
                     lastError = err;
-                    if (err?.status === 401 || err?.status === 403 || err?.status === 429) {
+                    if (err?.status === 401 || err?.status === 403) {
                         throw err;
                     }
-                }
-            }
-
-            const discoveredModels = await fetchAvailableGeminiModels(cleanKey, 8000);
-            const extraModels = discoveredModels.filter(m => !fallbackModels.includes(m)).slice(0, 4);
-
-            for (const modelName of extraModels) {
-                try {
-                    return await postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs);
-                } catch (err) {
-                    lastError = err;
-                    if (err?.status === 401 || err?.status === 403 || err?.status === 429) {
-                        throw err;
+                    if (err?.status === 429) {
+                        await sleepMs(1500);
+                        try {
+                            return await postGeminiGenerateContent(cleanKey, modelName, promptText, timeoutMs);
+                        } catch (retryErr) {
+                            lastError = retryErr;
+                        }
                     }
                 }
             }
@@ -2197,7 +2166,7 @@
                 showToast(`Guardado (+${totalKcalAdded} kcal) con IA`, '✨');
             } catch (err) {
                 console.error('Error en Gemini meal estimation:', err);
-                const detail = (err && err.message) ? err.message.slice(0, 125) : 'Error de conexión';
+                const detail = (err && err.message) ? err.message.slice(0, 140) : 'Error de conexión';
                 showToast(`IA: ${detail}`, '❌');
             } finally {
                 const freshBtn = document.getElementById(`geminiBtn-${categoryKey}`);
@@ -2258,7 +2227,6 @@
             showToast('Perfil actualizado', '👤');
         }
 
-        // Independent Macro Sliders (No auto-balance, shows sum vs 100%)
         function onIndependentMacroChange() {
             const valP = parseInt(document.getElementById('sliderP').value) || 0;
             const valC = parseInt(document.getElementById('sliderC').value) || 0;
@@ -2298,7 +2266,6 @@
             }
         }
 
-        // ================= SINGLE-SCREEN CALENDAR =================
         function changeCalendarMonth(deltaMonths) {
             appState.calendarViewDate.setMonth(appState.calendarViewDate.getMonth() + deltaMonths);
             renderCalendar();
@@ -2395,7 +2362,6 @@
             }
         }
 
-        // ================= BACKUP (nutriapp.json) =================
         function exportBackupToFile() {
             const dataToExport = {
                 version: '1.1',
@@ -2459,7 +2425,6 @@
             e.target.value = '';
         }
 
-        // Date Controls
         function onDatePicked(val) {
             if (val) {
                 appState.currentDate = val;
@@ -2481,7 +2446,6 @@
             renderApp();
         }
 
-        // Navigation & Header Visibility
         function syncHeaderVisibility() {
             const dateBar = document.getElementById('dateSwitcherBar');
             const dietaBalance = document.getElementById('stickyDietaBalance');
@@ -2493,7 +2457,6 @@
                 dateBar.classList.remove('hidden');
                 dietaBalance.classList.add('hidden');
             } else {
-                // Calendario & Perfil: hide date bar
                 dateBar.classList.add('hidden');
                 dietaBalance.classList.add('hidden');
             }
@@ -2531,7 +2494,7 @@
             clearTimeout(window._toastTimer);
             window._toastTimer = setTimeout(() => {
                 toast.classList.add('hidden');
-            }, 3000);
+            }, 4000);
         }
     </script>
 </body>

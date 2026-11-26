@@ -46,34 +46,34 @@
     <!-- Unified Sticky Top Block (Brand Header + Date Switcher + Dieta Balance) -->
     <header id="mainStickyHeader" class="bg-brand-600 text-white sticky top-0 z-30 shadow-md">
         <!-- Brand Header -->
-        <div class="max-w-3xl mx-auto px-4 py-2.5 flex items-center justify-between">
-            <div class="flex items-center space-x-2 min-w-0">
-                <span class="text-xl shrink-0">🍏</span>
+        <div class="max-w-3xl mx-auto px-3.5 py-1.5 flex items-center justify-between">
+            <div class="flex items-center space-x-1.5 min-w-0">
+                <span class="text-base shrink-0">🍏</span>
                 <div class="min-w-0">
-                    <h1 class="text-base font-bold leading-tight truncate">NutriDiario</h1>
-                    <p class="text-[11px] text-brand-100 font-medium leading-tight truncate">Nutrición & Ejercicio</p>
+                    <h1 class="text-sm font-bold leading-none truncate">NutriDiario</h1>
+                    <p class="text-[10px] text-brand-100 font-medium leading-tight truncate mt-0.5">Nutrición & Ejercicio</p>
                 </div>
             </div>
             <div class="text-right shrink-0">
-                <span class="block text-[10px] uppercase tracking-wider text-brand-100 font-semibold leading-tight">Meta Base</span>
-                <span id="headerBaseMeta" class="text-sm font-extrabold text-white leading-tight">1702 kcal</span>
+                <span class="block text-[9px] uppercase tracking-wider text-brand-100 font-semibold leading-none">Meta Base</span>
+                <span id="headerBaseMeta" class="text-xs font-extrabold text-white leading-tight">1702 kcal</span>
             </div>
         </div>
 
         <!-- Date Switcher Bar (Hidden on Calendar and Profile tabs) -->
-        <div id="dateSwitcherBar" class="bg-brand-700/70 backdrop-blur-sm px-4 py-1.5 border-t border-brand-500/30">
-            <div class="max-w-3xl mx-auto flex items-center justify-between text-sm">
-                <button type="button" onclick="changeDate(-1)" aria-label="Día anterior" class="p-1.5 hover:bg-brand-600/70 rounded-lg transition text-white active:scale-95 shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div id="dateSwitcherBar" class="bg-brand-700/70 backdrop-blur-sm px-3.5 py-1 border-t border-brand-500/30">
+            <div class="max-w-3xl mx-auto flex items-center justify-between text-xs">
+                <button type="button" onclick="changeDate(-1)" aria-label="Día anterior" class="p-1 hover:bg-brand-600/70 rounded-md transition text-white active:scale-95 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
-                <div class="flex items-center gap-2 min-w-0">
-                    <input type="date" id="datePicker" onchange="onDatePicked(this.value)" class="bg-transparent text-white font-semibold text-center border-b border-brand-300/60 focus:outline-none cursor-pointer text-xs sm:text-sm">
-                    <button type="button" onclick="goToToday()" class="text-[11px] font-semibold bg-brand-800/90 hover:bg-brand-900 px-2 py-0.5 rounded-md text-brand-100 border border-brand-400/40 shrink-0">Hoy</button>
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <input type="date" id="datePicker" onchange="onDatePicked(this.value)" class="bg-transparent text-white font-semibold text-center border-b border-brand-300/60 focus:outline-none cursor-pointer text-[11px] leading-tight">
+                    <button type="button" onclick="goToToday()" class="text-[10px] font-semibold bg-brand-800/90 hover:bg-brand-900 px-1.5 py-0.5 rounded text-brand-100 border border-brand-400/40 leading-none shrink-0">Hoy</button>
                 </div>
-                <button type="button" onclick="changeDate(1)" aria-label="Día siguiente" class="p-1.5 hover:bg-brand-600/70 rounded-lg transition text-white active:scale-95 shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <button type="button" onclick="changeDate(1)" aria-label="Día siguiente" class="p-1 hover:bg-brand-600/70 rounded-md transition text-white active:scale-95 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 5l7 7-7 7" />
                     </svg>
                 </button>
@@ -183,6 +183,16 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Sticky Mini Quick Actions: Favoritas & Crear personalizado -->
+                    <div class="pt-1 flex items-center justify-end gap-1.5">
+                        <button type="button" onclick="openFavoritesModal()" class="text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded-md leading-tight transition active:scale-95">
+                            ★ Favoritas
+                        </button>
+                        <button type="button" onclick="openCustomFoodModal(MEAL_CATEGORIES[activeMealIndex]?.key || null)" class="text-[10px] font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200/80 px-2 py-0.5 rounded-md leading-tight transition active:scale-95">
+                            + Crear personalizado
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -199,51 +209,6 @@
 
         <!-- ================= TAB 1: DIETA ================= -->
         <section id="tab-dieta" class="tab-content space-y-4">
-
-            <!-- Search & Add Food Card -->
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
-                <div class="flex justify-between items-center gap-2 flex-wrap">
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-800">Añadir Alimento</h3>
-                        <p class="text-[11px] text-slate-400">Búsqueda online (Mercadona, Carrefour, Hacendado...)</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" onclick="openFavoritesModal()" class="text-xs bg-brand-50 text-brand-700 hover:bg-brand-100 font-semibold px-2.5 py-1 rounded-lg border border-brand-200 transition">
-                            ★ Favoritas
-                        </button>
-                        <button type="button" onclick="openCustomFoodModal()" class="text-xs text-brand-600 hover:text-brand-700 font-semibold px-1.5 py-1 transition">
-                            + Crear Personalizado
-                        </button>
-                    </div>
-                </div>
-
-                <div class="flex gap-2">
-                    <div class="relative flex-1">
-                        <input type="text" id="foodSearchInput" placeholder="Ej: Avena Mercadona, Leche Carrefour, Huevo..." onkeyup="handleSearchKeyUp(event)" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 absolute left-3 top-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                    <button type="button" onclick="searchFood()" class="bg-brand-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm hover:bg-brand-700 transition active:scale-95 shadow-sm">
-                        Buscar
-                    </button>
-                </div>
-
-                <!-- Search Results Container -->
-                <div id="searchResultsContainer" class="hidden space-y-2 pt-2 border-t border-slate-100">
-                    <div class="flex justify-between items-center text-xs text-slate-400 font-medium">
-                        <span>Resultados de búsqueda:</span>
-                        <span id="searchLoader" class="hidden text-brand-600 flex items-center gap-1">
-                            <svg class="animate-spin h-3.5 w-3.5 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg> Consultando Open Food Facts...
-                        </span>
-                    </div>
-                    <div id="searchResultsList" class="max-h-64 overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
-                    </div>
-                </div>
-            </div>
 
             <!-- Whole-Meal Two-Tap Move Banner -->
             <div id="moveBanner" class="hidden bg-brand-50 border border-brand-200 text-brand-800 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs shadow-sm">
@@ -782,6 +747,10 @@
         let cloningSourceCategory = null;
         let presetMealCategoryForModal = null;
         let aiFeedbackByMeal = {};
+        let activeMealIndex = 0;
+        let mealSwipeStartX = 0;
+        let mealSwipeStartY = 0;
+        let mealSwipeTracking = false;
 
         window.onload = function() {
             loadFromStorage();
@@ -988,6 +957,38 @@
             renderApp();
         }
 
+        function selectMealTab(index) {
+            const total = MEAL_CATEGORIES.length;
+            activeMealIndex = ((index % total) + total) % total;
+            renderApp();
+        }
+
+        function handleMealTouchStart(e) {
+            if (!e.touches || e.touches.length !== 1) return;
+            const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+            if (['input', 'textarea', 'select', 'button', 'label'].includes(tag)) {
+                mealSwipeTracking = false;
+                return;
+            }
+            mealSwipeStartX = e.touches[0].clientX;
+            mealSwipeStartY = e.touches[0].clientY;
+            mealSwipeTracking = true;
+        }
+
+        function handleMealTouchEnd(e) {
+            if (!mealSwipeTracking || !e.changedTouches || e.changedTouches.length !== 1) return;
+            mealSwipeTracking = false;
+            const dx = e.changedTouches[0].clientX - mealSwipeStartX;
+            const dy = e.changedTouches[0].clientY - mealSwipeStartY;
+            if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+                if (dx < 0) {
+                    selectMealTab(activeMealIndex + 1);
+                } else {
+                    selectMealTab(activeMealIndex - 1);
+                }
+            }
+        }
+
         function renderMealsTab(dayLog, totals, targets) {
             const container = document.getElementById('mealsCategoryList');
             const moveBanner = document.getElementById('moveBanner');
@@ -1000,149 +1001,162 @@
 
             if (pendingMoveMeal) {
                 const sourceCatObj = MEAL_CATEGORIES.find(c => c.key === pendingMoveMeal);
-                document.getElementById('moveBannerText').innerHTML = `<span class="font-bold">Mover ${sourceCatObj ? sourceCatObj.title : 'turno'}:</span> toca "Mover aquí" en el turno destino.`;
+                document.getElementById('moveBannerText').innerHTML = `<span class="font-bold">Mover ${sourceCatObj ? sourceCatObj.title : 'turno'}:</span> desliza o toca un turno y pulsa "Mover aquí".`;
                 moveBanner.classList.remove('hidden');
             } else {
                 moveBanner.classList.add('hidden');
             }
 
-            let html = '';
-            MEAL_CATEGORIES.forEach(cat => {
-                const items = dayLog.meals[cat.key] || [];
-                const catKcal = Math.round(items.reduce((acc, item) => acc + (item.kcal || 0), 0));
-                const catP = Math.round(items.reduce((acc, item) => acc + (item.protein || 0), 0) * 10) / 10;
-                const catC = Math.round(items.reduce((acc, item) => acc + (item.carbs || 0), 0) * 10) / 10;
-                const catF = Math.round(items.reduce((acc, item) => acc + (item.fat || 0), 0) * 10) / 10;
+            const cat = MEAL_CATEGORIES[activeMealIndex] || MEAL_CATEGORIES[0];
+            const items = dayLog.meals[cat.key] || [];
+            const catKcal = Math.round(items.reduce((acc, item) => acc + (item.kcal || 0), 0));
+            const catP = Math.round(items.reduce((acc, item) => acc + (item.protein || 0), 0) * 10) / 10;
+            const catC = Math.round(items.reduce((acc, item) => acc + (item.carbs || 0), 0) * 10) / 10;
+            const catF = Math.round(items.reduce((acc, item) => acc + (item.fat || 0), 0) * 10) / 10;
 
-                const isSourceMeal = pendingMoveMeal === cat.key;
-                const isTargetForMove = pendingMoveMeal && pendingMoveMeal !== cat.key;
-                const isMicOnThisMeal = manualMicActive && manualMicCategory === cat.key;
-                const fb = aiFeedbackByMeal[`${appState.currentDate}::${cat.key}`];
+            const isSourceMeal = pendingMoveMeal === cat.key;
+            const isTargetForMove = pendingMoveMeal && pendingMoveMeal !== cat.key;
+            const isMicOnThisMeal = manualMicActive && manualMicCategory === cat.key;
+            const fb = aiFeedbackByMeal[`${appState.currentDate}::${cat.key}`];
 
-                let feedbackHtml = '';
-                if (fb && Array.isArray(fb.items) && fb.items.length > 0) {
-                    const fbKcal = Math.round(fb.items.reduce((s, x) => s + (x.kcal || 0), 0));
-                    const fbP = Math.round(fb.items.reduce((s, x) => s + (x.protein || 0), 0) * 10) / 10;
-                    const fbC = Math.round(fb.items.reduce((s, x) => s + (x.carbs || 0), 0) * 10) / 10;
-                    const fbF = Math.round(fb.items.reduce((s, x) => s + (x.fat || 0), 0) * 10) / 10;
+            let feedbackHtml = '';
+            if (fb && Array.isArray(fb.items) && fb.items.length > 0) {
+                const fbKcal = Math.round(fb.items.reduce((s, x) => s + (x.kcal || 0), 0));
+                const fbP = Math.round(fb.items.reduce((s, x) => s + (x.protein || 0), 0) * 10) / 10;
+                const fbC = Math.round(fb.items.reduce((s, x) => s + (x.carbs || 0), 0) * 10) / 10;
+                const fbF = Math.round(fb.items.reduce((s, x) => s + (x.fat || 0), 0) * 10) / 10;
 
-                    const remP = Math.round((targets.targetP_grams - totals.currentP) * 10) / 10;
-                    const remC = Math.round((targets.targetC_grams - totals.currentC) * 10) / 10;
-                    const remF = Math.round((targets.targetF_grams - totals.currentF) * 10) / 10;
+                const remP = Math.round((targets.targetP_grams - totals.currentP) * 10) / 10;
+                const remC = Math.round((targets.targetC_grams - totals.currentC) * 10) / 10;
+                const remF = Math.round((targets.targetF_grams - totals.currentF) * 10) / 10;
 
-                    feedbackHtml = `
-                        <div class="bg-emerald-50/90 border border-emerald-200 rounded-xl p-2.5 space-y-2 text-xs">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="font-bold text-emerald-900">✨ Desglose guardado por IA (${fbKcal} kcal)</span>
-                                <button type="button" onclick="dismissAiFeedback('${cat.key}')" class="text-[10px] font-semibold text-emerald-700 hover:text-emerald-950 px-1.5 py-0.5 rounded bg-white/80 border border-emerald-200">
-                                    Ocultar
-                                </button>
-                            </div>
-                            <div class="space-y-1 text-[11px] text-slate-700">
-                                ${fb.items.map(it => `
-                                    <div class="flex justify-between items-center gap-2 bg-white/80 rounded-lg px-2 py-1 border border-emerald-100">
-                                        <span class="font-semibold truncate">${it.name} (${it.amount}${it.unit === 'grams' ? 'g' : 'ud'})</span>
-                                        <span class="font-bold text-slate-800 shrink-0">${Math.round(it.kcal)} kcal · P:${it.protein}g C:${it.carbs}g G:${it.fat}g</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                            <div class="pt-1.5 border-t border-emerald-200/80 flex flex-wrap items-center justify-between gap-1 text-[11px]">
-                                <span class="font-bold text-emerald-800">Tanda: P ${fbP}g · C ${fbC}g · G ${fbF}g</span>
-                                <span class="font-semibold text-slate-700">Restante hoy: P ${remP > 0 ? remP : 0}g · C ${remC > 0 ? remC : 0}g · G ${remF > 0 ? remF : 0}g</span>
-                            </div>
+                feedbackHtml = `
+                    <div class="bg-emerald-50/90 border border-emerald-200 rounded-xl p-2.5 space-y-2 text-xs">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-bold text-emerald-900">✨ Desglose guardado por IA (${fbKcal} kcal)</span>
+                            <button type="button" onclick="dismissAiFeedback('${cat.key}')" class="text-[10px] font-semibold text-emerald-700 hover:text-emerald-950 px-1.5 py-0.5 rounded bg-white/80 border border-emerald-200">
+                                Ocultar
+                            </button>
                         </div>
-                    `;
-                }
-
-                html += `
-                    <div class="bg-white rounded-2xl p-4 shadow-sm border ${isSourceMeal ? 'border-brand-600 ring-2 ring-brand-200 bg-brand-50/20' : (isTargetForMove ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-100')} space-y-2.5 transition">
-                        <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-lg shrink-0">${cat.icon}</span>
-                                <div class="min-w-0">
-                                    <h3 class="font-bold text-slate-800 text-sm truncate">${cat.title}</h3>
-                                    ${items.length > 0 ? `<p class="text-[10px] text-slate-500 font-medium truncate">P: <strong class="text-rose-600">${catP}g</strong> · C: <strong class="text-amber-600">${catC}g</strong> · G: <strong class="text-sky-600">${catF}g</strong></p>` : ''}
+                        <div class="space-y-1 text-[11px] text-slate-700">
+                            ${fb.items.map(it => `
+                                <div class="flex justify-between items-center gap-2 bg-white/80 rounded-lg px-2 py-1 border border-emerald-100">
+                                    <span class="font-semibold truncate">${it.name} (${it.amount}${it.unit === 'grams' ? 'g' : 'ud'})</span>
+                                    <span class="font-bold text-slate-800 shrink-0">${Math.round(it.kcal)} kcal · P:${it.protein}g C:${it.carbs}g G:${it.fat}g</span>
                                 </div>
-                            </div>
-                            <div class="flex items-center gap-1.5 shrink-0">
-                                ${isTargetForMove ? `
-                                    <button type="button" onclick="completeMoveMealTo('${cat.key}')" class="text-[11px] font-bold bg-brand-600 hover:bg-brand-700 text-white px-2.5 py-1 rounded-lg transition active:scale-95">
-                                        Mover aquí
-                                    </button>
-                                ` : (items.length > 0 ? `
-                                    <button type="button" onclick="startMoveMeal('${cat.key}')" title="Mover todo el turno a otra comida" class="text-[11px] font-bold px-2 py-1 rounded-lg border ${isSourceMeal ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-700 border-slate-200'} transition">
-                                        ${isSourceMeal ? 'Origen' : 'Mover turno'}
-                                    </button>
-                                ` : '')}
-                                <button type="button" onclick="openCloneMealModal('${cat.key}')" title="Clonar comida a otra fecha o turno" class="text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-lg transition">
-                                    Clonar
-                                </button>
-                                <button type="button" onclick="saveMealAsTemplate('${cat.key}')" title="Añadir a favoritos" aria-label="Añadir a favoritos" class="w-7 h-7 flex items-center justify-center text-sm bg-amber-50 hover:bg-amber-100 text-amber-500 hover:text-amber-600 rounded-lg border border-amber-200/80 transition active:scale-95">
-                                    ★
-                                </button>
-                                <span class="text-xs sm:text-sm font-bold text-brand-600 ml-1">${catKcal} kcal</span>
-                            </div>
+                            `).join('')}
                         </div>
-
-                        <!-- Voice + Gemini + Add More Bar -->
-                        <div class="bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 space-y-2">
-                            <div class="flex items-center gap-1.5">
-                                <input type="text" id="geminiInput-${cat.key}" placeholder="Dicta o escribe ${cat.title.toLowerCase()} (ej: 2 huevos, tostada y café)..." onkeydown="handleGeminiMealKey(event, '${cat.key}')" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                                <button type="button" id="micBtn-${cat.key}" onclick="toggleVoiceMealInput('${cat.key}')" title="${isMicOnThisMeal ? 'Pulsa para detener el micrófono' : 'Pulsa para hablar (no se corta solo)'}" aria-label="${isMicOnThisMeal ? 'Detener micrófono' : 'Iniciar micrófono'}" class="w-8 h-8 rounded-lg ${isMicOnThisMeal ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 'bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border-slate-200'} border flex items-center justify-center text-sm shrink-0 transition active:scale-95">
-                                    ${isMicOnThisMeal ? '⏹️' : '🎤'}
-                                </button>
-                                <button type="button" id="geminiBtn-${cat.key}" onclick="estimateAndAddMealWithGemini('${cat.key}')" title="Calcular calorías y macros con IA y guardar en ${cat.title}" class="px-2.5 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shrink-0 transition active:scale-95 flex items-center gap-1 shadow-2xs">
-                                    <span>✨ IA</span>
-                                </button>
-                            </div>
-                            <div class="flex items-center justify-between gap-2 text-[11px]">
-                                <span id="micStatus-${cat.key}" class="${isMicOnThisMeal ? 'text-rose-600 font-semibold' : 'text-slate-400'} truncate">
-                                    ${isMicOnThisMeal ? 'Grabando... vuelve a pulsar el micro al terminar' : 'Pulsa 🎤 para hablar, ciérralo y pulsa ✨ IA'}
-                                </span>
-                                <button type="button" onclick="addMoreToMeal('${cat.key}')" class="text-[11px] font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg shrink-0 transition active:scale-95">
-                                    + Añadir más
-                                </button>
-                            </div>
+                        <div class="pt-1.5 border-t border-emerald-200/80 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                            <span class="font-bold text-emerald-800">Tanda: P ${fbP}g · C ${fbC}g · G ${fbF}g</span>
+                            <span class="font-semibold text-slate-700">Restante hoy: P ${remP > 0 ? remP : 0}g · C ${remC > 0 ? remC : 0}g · G ${remF > 0 ? remF : 0}g</span>
                         </div>
-
-                        ${feedbackHtml}
-
-                        ${items.length === 0 ? `
-                            <p class="text-xs text-slate-400 italic py-1">Sin alimentos registrados</p>
-                        ` : `
-                            <div class="divide-y divide-slate-100 space-y-1">
-                                ${items.map((item, idx) => `
-                                    <div class="pt-2 flex justify-between items-center gap-2 text-xs">
-                                        <div class="pr-1 min-w-0">
-                                            <div class="flex items-center gap-1.5 flex-wrap">
-                                                <span class="font-semibold text-slate-700 text-sm">${item.name}</span>
-                                                ${item.brand ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">🛒 ${item.brand}</span>` : ''}
-                                            </div>
-                                            <span class="text-slate-400 text-[11px]">
-                                                ${item.amount} ${item.unit === 'grams' ? 'g' : 'ud'} • P: ${item.protein}g | C: ${item.carbs}g | G: ${item.fat}g
-                                            </span>
-                                        </div>
-                                        <div class="flex items-center gap-1.5 shrink-0">
-                                            <span class="font-bold text-slate-800 text-xs sm:text-sm mr-1">${Math.round(item.kcal)} kcal</span>
-                                            <button type="button" onclick="removeMealItem('${cat.key}', ${idx})" title="Eliminar" class="text-rose-400 hover:text-rose-600 p-1">
-                                                ✕
-                                            </button>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        `}
                     </div>
                 `;
-            });
+            }
+
+            const pillsHtml = `
+                <div class="grid grid-cols-4 gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/70">
+                    ${MEAL_CATEGORIES.map((c, idx) => {
+                        const isActive = idx === activeMealIndex;
+                        const cItems = dayLog.meals[c.key] || [];
+                        const cKcal = Math.round(cItems.reduce((s, x) => s + (x.kcal || 0), 0));
+                        return `
+                            <button type="button" onclick="selectMealTab(${idx})" class="py-1.5 px-1 rounded-lg text-center transition flex flex-col items-center justify-center min-w-0 ${isActive ? 'bg-white text-brand-700 font-bold shadow-xs ring-1 ring-brand-200' : 'text-slate-600 hover:text-slate-900 font-medium'}">
+                                <span class="text-[11px] leading-tight truncate w-full">${c.icon} ${c.title.split(' ')[0]}</span>
+                                <span class="text-[9px] leading-tight ${isActive ? 'text-brand-600 font-semibold' : 'text-slate-400'} tabular-nums">${cKcal} kcal</span>
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            const html = `
+                ${pillsHtml}
+                <div id="mealSwipeCard" ontouchstart="handleMealTouchStart(event)" ontouchend="handleMealTouchEnd(event)" class="bg-white rounded-2xl p-4 shadow-sm border ${isSourceMeal ? 'border-brand-600 ring-2 ring-brand-200 bg-brand-50/20' : (isTargetForMove ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-100')} space-y-2.5 transition">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-lg shrink-0">${cat.icon}</span>
+                            <div class="shrink-0">
+                                <h3 class="font-bold text-slate-800 text-sm leading-tight whitespace-nowrap">${cat.title}</h3>
+                                ${items.length > 0 ? `<p class="text-[10px] text-slate-500 font-medium leading-tight whitespace-nowrap">P: <strong class="text-rose-600">${catP}g</strong> · C: <strong class="text-amber-600">${catC}g</strong> · G: <strong class="text-sky-600">${catF}g</strong></p>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${isTargetForMove ? `
+                                <button type="button" onclick="completeMoveMealTo('${cat.key}')" class="text-[11px] font-bold bg-brand-600 hover:bg-brand-700 text-white px-2.5 py-1 rounded-lg transition active:scale-95 whitespace-nowrap">
+                                    Mover aquí
+                                </button>
+                            ` : (items.length > 0 ? `
+                                <button type="button" onclick="startMoveMeal('${cat.key}')" title="Mover todo el turno a otra comida" class="text-[11px] font-bold px-2 py-1 rounded-lg border whitespace-nowrap ${isSourceMeal ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-700 border-slate-200'} transition">
+                                    ${isSourceMeal ? 'Origen' : 'Mover turno'}
+                                </button>
+                            ` : '')}
+                            <button type="button" onclick="openCloneMealModal('${cat.key}')" title="Clonar comida a otra fecha o turno" class="text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-lg transition whitespace-nowrap">
+                                Clonar
+                            </button>
+                            <button type="button" onclick="saveMealAsTemplate('${cat.key}')" title="Añadir a favoritos" aria-label="Añadir a favoritos" class="w-7 h-7 flex items-center justify-center text-sm bg-amber-50 hover:bg-amber-100 text-amber-500 hover:text-amber-600 rounded-lg border border-amber-200/80 transition active:scale-95 shrink-0">
+                                ★
+                            </button>
+                            <span class="text-xs sm:text-sm font-bold text-brand-600 ml-0.5 whitespace-nowrap">${catKcal} kcal</span>
+                        </div>
+                    </div>
+
+                    <!-- Voice + Gemini + Add More Bar -->
+                    <div class="bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 space-y-2">
+                        <div class="flex items-center gap-1.5">
+                            <input type="text" id="geminiInput-${cat.key}" placeholder="Dicta o escribe ${cat.title.toLowerCase()} (ej: 2 huevos, tostada y café)..." onkeydown="handleGeminiMealKey(event, '${cat.key}')" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            <button type="button" id="micBtn-${cat.key}" onclick="toggleVoiceMealInput('${cat.key}')" title="${isMicOnThisMeal ? 'Pulsa para detener el micrófono' : 'Pulsa para hablar (no se corta solo)'}" aria-label="${isMicOnThisMeal ? 'Detener micrófono' : 'Iniciar micrófono'}" class="w-8 h-8 rounded-lg ${isMicOnThisMeal ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 'bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border-slate-200'} border flex items-center justify-center text-sm shrink-0 transition active:scale-95">
+                                ${isMicOnThisMeal ? '⏹️' : '🎤'}
+                            </button>
+                            <button type="button" id="geminiBtn-${cat.key}" onclick="estimateAndAddMealWithGemini('${cat.key}')" title="Calcular calorías y macros con IA y guardar en ${cat.title}" class="px-2.5 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shrink-0 transition active:scale-95 flex items-center gap-1 shadow-2xs">
+                                <span>✨ IA</span>
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 text-[11px]">
+                            <span id="micStatus-${cat.key}" class="${isMicOnThisMeal ? 'text-rose-600 font-semibold' : 'text-slate-400'} truncate">
+                                ${isMicOnThisMeal ? 'Grabando... vuelve a pulsar el micro al terminar' : 'Desliza lado a lado para cambiar de turno'}
+                            </span>
+                            <button type="button" onclick="addMoreToMeal('${cat.key}')" class="text-[11px] font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg shrink-0 transition active:scale-95">
+                                + Añadir más
+                            </button>
+                        </div>
+                    </div>
+
+                    ${feedbackHtml}
+
+                    ${items.length === 0 ? `
+                        <p class="text-xs text-slate-400 italic py-1">Sin alimentos registrados</p>
+                    ` : `
+                        <div class="divide-y divide-slate-100 space-y-1">
+                            ${items.map((item, idx) => `
+                                <div class="pt-2 flex justify-between items-center gap-2 text-xs">
+                                    <div class="pr-1 min-w-0">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="font-semibold text-slate-700 text-sm">${item.name}</span>
+                                            ${item.brand ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">🛒 ${item.brand}</span>` : ''}
+                                        </div>
+                                        <span class="text-slate-400 text-[11px]">
+                                            ${item.amount} ${item.unit === 'grams' ? 'g' : 'ud'} • P: ${item.protein}g | C: ${item.carbs}g | G: ${item.fat}g
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        <span class="font-bold text-slate-800 text-xs sm:text-sm mr-1">${Math.round(item.kcal)} kcal</span>
+                                        <button type="button" onclick="removeMealItem('${cat.key}', ${idx})" title="Eliminar" class="text-rose-400 hover:text-rose-600 p-1">
+                                            ✕
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
             container.innerHTML = html;
 
-            MEAL_CATEGORIES.forEach(c => {
-                const el = document.getElementById(`geminiInput-${c.key}`);
-                if (el && preservedInputs[c.key]) {
-                    el.value = preservedInputs[c.key];
-                }
-            });
+            const el = document.getElementById(`geminiInput-${cat.key}`);
+            if (el && preservedInputs[cat.key]) {
+                el.value = preservedInputs[cat.key];
+            }
         }
 
         function startMoveMeal(fromCategory) {
@@ -1305,121 +1319,6 @@
             saveStorage();
             renderFavoritesList();
             showToast('Favorita eliminada', '🗑️');
-        }
-
-        async function searchFood() {
-            const query = document.getElementById('foodSearchInput').value.trim();
-            if (!query) return;
-
-            const resultsContainer = document.getElementById('searchResultsContainer');
-            const resultsList = document.getElementById('searchResultsList');
-            const loader = document.getElementById('searchLoader');
-
-            resultsContainer.classList.remove('hidden');
-            resultsList.innerHTML = '';
-            loader.classList.remove('hidden');
-
-            const combinedCatalog = [...DEFAULT_CATALOG, ...appState.customCatalog];
-            const localMatches = combinedCatalog.filter(item =>
-                item.name.toLowerCase().includes(query.toLowerCase())
-            );
-
-            let html = '';
-            if (localMatches.length > 0) {
-                html += `<div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Catálogo Local / Favoritos</div>`;
-                localMatches.forEach(item => {
-                    html += createSearchResultHTML(item, 'Local');
-                });
-            }
-
-            try {
-                const url = `https://es.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=35`;
-                const response = await fetch(url);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.products && data.products.length > 0) {
-                        const superBrands = ['hacendado', 'mercadona', 'carrefour', 'deliplus', 'compy', 'bosque verde', 'dia', 'lidl', 'eroski', 'el corte ingles', 'alcampo'];
-
-                        const parsedProducts = [];
-                        data.products.forEach(prod => {
-                            const pName = prod.product_name_es || prod.product_name || 'Alimento';
-                            const rawBrand = (prod.brands || '').trim();
-                            const nut = prod.nutriments || {};
-                            const kcal = Math.round(nut['energy-kcal_100g'] || nut['energy-kcal_value'] || nut['energy-kcal'] || 0);
-
-                            if (kcal > 0) {
-                                const brandLower = rawBrand.toLowerCase();
-                                const nameLower = pName.toLowerCase();
-
-                                let isSuper = superBrands.some(sb => brandLower.includes(sb) || nameLower.includes(sb));
-                                let displayBrand = rawBrand;
-
-                                if (brandLower.includes('hacendado') || nameLower.includes('hacendado') || brandLower.includes('mercadona') || nameLower.includes('mercadona')) {
-                                    displayBrand = 'Mercadona (Hacendado)';
-                                    isSuper = true;
-                                } else if (brandLower.includes('carrefour') || nameLower.includes('carrefour')) {
-                                    displayBrand = 'Carrefour';
-                                    isSuper = true;
-                                } else if (brandLower.includes('deliplus') || nameLower.includes('deliplus')) {
-                                    displayBrand = 'Mercadona (Deliplus)';
-                                    isSuper = true;
-                                }
-
-                                parsedProducts.push({
-                                    id: 'off-' + (prod.id || Math.random()),
-                                    name: pName,
-                                    brand: displayBrand,
-                                    isSupermarket: isSuper,
-                                    kcal: kcal,
-                                    protein: Math.round((nut.proteins_100g || 0) * 10) / 10,
-                                    carbs: Math.round((nut.carbohydrates_100g || 0) * 10) / 10,
-                                    fat: Math.round((nut.fat_100g || 0) * 10) / 10
-                                });
-                            }
-                        });
-
-                        parsedProducts.sort((a, b) => (b.isSupermarket ? 1 : 0) - (a.isSupermarket ? 1 : 0));
-
-                        if (parsedProducts.length > 0) {
-                            html += `<div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider my-1">Open Food Facts (Supermercados & Marcas)</div>`;
-                            parsedProducts.forEach(prod => {
-                                html += createSearchResultHTML(prod);
-                            });
-                        }
-                    }
-                }
-            } catch (err) {
-                console.log('Error conectando a OpenFoodFacts API', err);
-            }
-
-            loader.classList.add('hidden');
-            if (!html) {
-                resultsList.innerHTML = `<p class="text-xs text-slate-400 py-2">Sin resultados para "${query}". Prueba con otro término o usa "+ Crear Personalizado".</p>`;
-            } else {
-                resultsList.innerHTML = html;
-            }
-        }
-
-        function handleSearchKeyUp(e) {
-            if (e.key === 'Enter') searchFood();
-        }
-
-        function createSearchResultHTML(item, defaultTag = '') {
-            const jsonStr = JSON.stringify(item).replace(/"/g, '&quot;');
-            const badgeStr = item.brand ? `🛒 ${item.brand}` : (defaultTag ? defaultTag : '');
-
-            return `
-                <div onclick="openAddFoodModal(${jsonStr})" class="p-2.5 bg-slate-50 hover:bg-brand-50 rounded-xl cursor-pointer transition flex justify-between items-center border border-slate-100 hover:border-brand-200">
-                    <div class="pr-2">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="font-semibold text-xs text-slate-800">${item.name}</span>
-                            ${badgeStr ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">${badgeStr}</span>` : ''}
-                        </div>
-                        <span class="text-[11px] text-slate-400">100g: ${item.kcal} kcal | P: ${item.protein || 0}g C: ${item.carbs || 0}g G: ${item.fat || 0}g</span>
-                    </div>
-                    <span class="text-xs font-bold text-brand-600 bg-brand-100/60 px-2 py-1 rounded-lg shrink-0">+ Añadir</span>
-                </div>
-            `;
         }
 
         function openAddFoodModal(item, categoryOverride = null) {

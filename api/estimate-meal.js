@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
     const prompt = `Analiza esta comida para el turno "${categoryKey}": "${description}". Devuelve un array JSON con cada alimento o componente indicado, estimando con realismo calorías totales, gramos de proteína, carbohidratos y grasas, cantidad y unidad ("grams" o "units"). Responde solo con JSON válido.`;
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`;
     const geminiRes = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

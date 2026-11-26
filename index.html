@@ -142,7 +142,7 @@
             <!-- Macronutrients Target vs Actual -->
             <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
                 <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Macronutrientes</h3>
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Macronutrientes (100% Diario)</h3>
                     <span id="macroDistributionLabel" class="text-xs font-medium text-slate-400">30% P / 40% C / 30% G</span>
                 </div>
 
@@ -157,6 +157,7 @@
                             <div class="text-xs font-semibold text-slate-800">
                                 <span id="curP">0g</span> / <span id="tgtP" class="text-slate-500 font-normal">0g</span>
                             </div>
+                            <div id="remP" class="text-[10px] font-semibold text-rose-600 mt-0.5">Faltan 0g</div>
                         </div>
                         <div class="w-full bg-rose-200/60 h-2 rounded-full overflow-hidden mt-2">
                             <div id="barP" class="bg-rose-500 h-full transition-all" style="width: 0%"></div>
@@ -173,6 +174,7 @@
                             <div class="text-xs font-semibold text-slate-800">
                                 <span id="curC">0g</span> / <span id="tgtC" class="text-slate-500 font-normal">0g</span>
                             </div>
+                            <div id="remC" class="text-[10px] font-semibold text-amber-600 mt-0.5">Faltan 0g</div>
                         </div>
                         <div class="w-full bg-amber-200/60 h-2 rounded-full overflow-hidden mt-2">
                             <div id="barC" class="bg-amber-500 h-full transition-all" style="width: 0%"></div>
@@ -189,6 +191,7 @@
                             <div class="text-xs font-semibold text-slate-800">
                                 <span id="curF">0g</span> / <span id="tgtF" class="text-slate-500 font-normal">0g</span>
                             </div>
+                            <div id="remF" class="text-[10px] font-semibold text-sky-600 mt-0.5">Faltan 0g</div>
                         </div>
                         <div class="w-full bg-sky-200/60 h-2 rounded-full overflow-hidden mt-2">
                             <div id="barF" class="bg-sky-500 h-full transition-all" style="width: 0%"></div>
@@ -778,6 +781,8 @@
         let pendingMoveMeal = null;
         let cloningSourceCategory = null;
         let presetMealCategoryForModal = null;
+        // Stores latest AI calculation feedback per meal category for the active day
+        let aiFeedbackByMeal = {};
 
         window.onload = function() {
             loadFromStorage();
@@ -906,6 +911,13 @@
             };
         }
 
+        function formatRemainingMacroText(label, current, target) {
+            const diff = Math.round((target - current) * 10) / 10;
+            if (diff > 0) return `Faltan ${diff}g de ${label}`;
+            if (diff < 0) return `Pasado +${Math.abs(diff)}g de ${label}`;
+            return `100% de ${label} cubierto`;
+        }
+
         function renderApp() {
             const dateStr = appState.currentDate;
             const dayLog = getDayLog(dateStr);
@@ -946,19 +958,22 @@
             document.getElementById('pctP').textContent = `${appState.macrosPct.P}%`;
             document.getElementById('curP').textContent = `${totals.currentP}g`;
             document.getElementById('tgtP').textContent = `${targetP_grams}g`;
+            document.getElementById('remP').textContent = formatRemainingMacroText('prot.', totals.currentP, targetP_grams);
             document.getElementById('barP').style.width = `${Math.min(100, (totals.currentP / Math.max(1, targetP_grams)) * 100)}%`;
 
             document.getElementById('pctC').textContent = `${appState.macrosPct.C}%`;
             document.getElementById('curC').textContent = `${totals.currentC}g`;
             document.getElementById('tgtC').textContent = `${targetC_grams}g`;
+            document.getElementById('remC').textContent = formatRemainingMacroText('carbos', totals.currentC, targetC_grams);
             document.getElementById('barC').style.width = `${Math.min(100, (totals.currentC / Math.max(1, targetC_grams)) * 100)}%`;
 
             document.getElementById('pctF').textContent = `${appState.macrosPct.F}%`;
             document.getElementById('curF').textContent = `${totals.currentF}g`;
             document.getElementById('tgtF').textContent = `${targetF_grams}g`;
+            document.getElementById('remF').textContent = formatRemainingMacroText('grasas', totals.currentF, targetF_grams);
             document.getElementById('barF').style.width = `${Math.min(100, (totals.currentF / Math.max(1, targetF_grams)) * 100)}%`;
 
-            renderMealsTab(dayLog);
+            renderMealsTab(dayLog, totals, { targetP_grams, targetC_grams, targetF_grams });
 
             document.getElementById('inputSteps').value = dayLog.steps !== null && dayLog.steps !== undefined ? dayLog.steps : '';
             document.getElementById('stepsKcalBurned').textContent = `+${totals.stepsKcal} kcal`;
@@ -969,11 +984,15 @@
             renderCalendar();
         }
 
-        function renderMealsTab(dayLog) {
+        function dismissAiFeedback(categoryKey) {
+            delete aiFeedbackByMeal[`${appState.currentDate}::${categoryKey}`];
+            renderApp();
+        }
+
+        function renderMealsTab(dayLog, totals, targets) {
             const container = document.getElementById('mealsCategoryList');
             const moveBanner = document.getElementById('moveBanner');
 
-            // Preserve any in-progress text or active mic state when re-rendering
             const preservedInputs = {};
             MEAL_CATEGORIES.forEach(c => {
                 const el = document.getElementById(`geminiInput-${c.key}`);
@@ -992,16 +1011,59 @@
             MEAL_CATEGORIES.forEach(cat => {
                 const items = dayLog.meals[cat.key] || [];
                 const catKcal = Math.round(items.reduce((acc, item) => acc + (item.kcal || 0), 0));
+                const catP = Math.round(items.reduce((acc, item) => acc + (item.protein || 0), 0) * 10) / 10;
+                const catC = Math.round(items.reduce((acc, item) => acc + (item.carbs || 0), 0) * 10) / 10;
+                const catF = Math.round(items.reduce((acc, item) => acc + (item.fat || 0), 0) * 10) / 10;
+
                 const isSourceMeal = pendingMoveMeal === cat.key;
                 const isTargetForMove = pendingMoveMeal && pendingMoveMeal !== cat.key;
                 const isMicOnThisMeal = manualMicActive && manualMicCategory === cat.key;
+                const fb = aiFeedbackByMeal[`${appState.currentDate}::${cat.key}`];
+
+                let feedbackHtml = '';
+                if (fb && Array.isArray(fb.items) && fb.items.length > 0) {
+                    const fbKcal = Math.round(fb.items.reduce((s, x) => s + (x.kcal || 0), 0));
+                    const fbP = Math.round(fb.items.reduce((s, x) => s + (x.protein || 0), 0) * 10) / 10;
+                    const fbC = Math.round(fb.items.reduce((s, x) => s + (x.carbs || 0), 0) * 10) / 10;
+                    const fbF = Math.round(fb.items.reduce((s, x) => s + (x.fat || 0), 0) * 10) / 10;
+
+                    const remP = Math.round((targets.targetP_grams - totals.currentP) * 10) / 10;
+                    const remC = Math.round((targets.targetC_grams - totals.currentC) * 10) / 10;
+                    const remF = Math.round((targets.targetF_grams - totals.currentF) * 10) / 10;
+
+                    feedbackHtml = `
+                        <div class="bg-emerald-50/90 border border-emerald-200 rounded-xl p-2.5 space-y-2 text-xs">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-bold text-emerald-900">✨ Desglose guardado por IA (${fbKcal} kcal)</span>
+                                <button type="button" onclick="dismissAiFeedback('${cat.key}')" class="text-[10px] font-semibold text-emerald-700 hover:text-emerald-950 px-1.5 py-0.5 rounded bg-white/80 border border-emerald-200">
+                                    Ocultar
+                                </button>
+                            </div>
+                            <div class="space-y-1 text-[11px] text-slate-700">
+                                ${fb.items.map(it => `
+                                    <div class="flex justify-between items-center gap-2 bg-white/80 rounded-lg px-2 py-1 border border-emerald-100">
+                                        <span class="font-semibold truncate">${it.name} (${it.amount}${it.unit === 'grams' ? 'g' : 'ud'})</span>
+                                        <span class="font-bold text-slate-800 shrink-0">${Math.round(it.kcal)} kcal · P:${it.protein}g C:${it.carbs}g G:${it.fat}g</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="pt-1.5 border-t border-emerald-200/80 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                                <span class="font-bold text-emerald-800">Tanda: P ${fbP}g · C ${fbC}g · G ${fbF}g</span>
+                                <span class="font-semibold text-slate-700">Restante hoy: P ${remP > 0 ? remP : 0}g · C ${remC > 0 ? remC : 0}g · G ${remF > 0 ? remF : 0}g</span>
+                            </div>
+                        </div>
+                    `;
+                }
 
                 html += `
                     <div class="bg-white rounded-2xl p-4 shadow-sm border ${isSourceMeal ? 'border-brand-600 ring-2 ring-brand-200 bg-brand-50/20' : (isTargetForMove ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-100')} space-y-2.5 transition">
                         <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
                             <div class="flex items-center gap-2 min-w-0">
                                 <span class="text-lg shrink-0">${cat.icon}</span>
-                                <h3 class="font-bold text-slate-800 text-sm truncate">${cat.title}</h3>
+                                <div class="min-w-0">
+                                    <h3 class="font-bold text-slate-800 text-sm truncate">${cat.title}</h3>
+                                    ${items.length > 0 ? `<p class="text-[10px] text-slate-500 font-medium truncate">P: <strong class="text-rose-600">${catP}g</strong> · C: <strong class="text-amber-600">${catC}g</strong> · G: <strong class="text-sky-600">${catF}g</strong></p>` : ''}
+                                </div>
                             </div>
                             <div class="flex items-center gap-1.5 shrink-0">
                                 ${isTargetForMove ? `
@@ -1043,6 +1105,8 @@
                                 </button>
                             </div>
                         </div>
+
+                        ${feedbackHtml}
 
                         ${items.length === 0 ? `
                             <p class="text-xs text-slate-400 italic py-1">Sin alimentos registrados</p>
@@ -1092,18 +1156,18 @@
             }
             if (pendingMoveMeal === fromCategory) {
                 pendingMoveMeal = null;
-                renderMealsTab(dayLog);
+                renderApp();
                 return;
             }
             pendingMoveMeal = fromCategory;
-            renderMealsTab(dayLog);
+            renderApp();
             const catObj = MEAL_CATEGORIES.find(c => c.key === fromCategory);
             showToast(`Toca "Mover aquí" en el turno donde llevar ${catObj ? catObj.title : 'el turno'}`, '↔️');
         }
 
         function cancelMoveMeal() {
             pendingMoveMeal = null;
-            renderMealsTab(getDayLog(appState.currentDate));
+            renderApp();
         }
 
         function completeMoveMealTo(targetCategory) {
@@ -1740,7 +1804,6 @@
             };
 
             recognition.onend = function() {
-                // Keep listening until user taps the mic again to close it
                 if (manualMicActive && manualMicCategory === categoryKey) {
                     micBaseText = (document.getElementById(`geminiInput-${categoryKey}`)?.value || '').trim();
                     micFinalText = '';
@@ -1769,7 +1832,6 @@
                 return;
             }
 
-            // If already recording on this meal -> user clicked to close microphone
             if (manualMicActive && manualMicCategory === categoryKey) {
                 manualMicActive = false;
                 manualMicCategory = null;
@@ -1785,7 +1847,6 @@
                 return;
             }
 
-            // Stop any previous recognition if switching meals
             manualMicActive = false;
             manualMicCategory = null;
             clearTimeout(micRestartTimer);
@@ -1827,7 +1888,6 @@
         }
 
         async function estimateAndAddMealWithGemini(categoryKey) {
-            // If mic is still open on this meal, close it cleanly first
             if (manualMicActive && manualMicCategory === categoryKey) {
                 manualMicActive = false;
                 manualMicCategory = null;
@@ -1851,8 +1911,13 @@
 
             const cacheKey = `${categoryKey}::${description.toLowerCase()}`;
             if (appState.geminiCache && appState.geminiCache[cacheKey]) {
-                incorporateGeminiItemsToMeal(categoryKey, appState.geminiCache[cacheKey]);
-                if (inputEl) inputEl.value = '';
+                const cachedItems = appState.geminiCache[cacheKey];
+                aiFeedbackByMeal[`${appState.currentDate}::${categoryKey}`] = {
+                    items: JSON.parse(JSON.stringify(cachedItems))
+                };
+                incorporateGeminiItemsToMeal(categoryKey, cachedItems);
+                const freshInput = document.getElementById(`geminiInput-${categoryKey}`);
+                if (freshInput) freshInput.value = '';
                 showToast('Comida calculada (caché IA) y guardada', '✨');
                 return;
             }
@@ -1942,6 +2007,9 @@
                 }
 
                 appState.geminiCache[cacheKey] = cleanItems;
+                aiFeedbackByMeal[`${appState.currentDate}::${categoryKey}`] = {
+                    items: JSON.parse(JSON.stringify(cleanItems))
+                };
                 incorporateGeminiItemsToMeal(categoryKey, cleanItems);
                 saveStorage();
 

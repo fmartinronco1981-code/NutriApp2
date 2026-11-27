@@ -80,7 +80,7 @@
             </div>
         </div>
 
-        <!-- Sticky Calorie Balance + 3 Macro Cards inside Dieta Tab (Unified with Header & Date) -->
+        <!-- Sticky Calorie Balance + 3 Macro Cards + Fixed Custom/Favorites Actions inside Dieta Tab -->
         <div id="stickyDietaBalance" class="bg-white text-slate-800 border-b border-slate-200/80 shadow-sm">
             <div class="max-w-3xl mx-auto px-4 py-2 space-y-2">
                 <div class="flex items-center justify-between gap-2">
@@ -124,7 +124,7 @@
                     </div>
                 </div>
 
-                <!-- Solo las 3 tarjetas de colores de Macronutrientes -->
+                <!-- 3 tarjetas de colores de Macronutrientes -->
                 <div class="grid grid-cols-3 gap-2 pt-0.5">
                     <!-- Protein -->
                     <div class="bg-rose-50/80 p-2 rounded-xl border border-rose-100 flex flex-col justify-between">
@@ -176,6 +176,16 @@
                             <div id="barF" class="bg-sky-500 h-full transition-all" style="width: 0%"></div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Pegado a Proteína, Carbos y Grasas: Crear Personalizado y Favoritos (fijo sin scroll) -->
+                <div class="flex items-center justify-between gap-2 pt-0.5">
+                    <button type="button" onclick="openCustomFoodModal()" class="flex-1 text-xs bg-brand-50 hover:bg-brand-100 text-brand-700 font-semibold py-1.5 px-3 rounded-xl border border-brand-200 transition active:scale-95 text-center">
+                        + Crear Personalizado
+                    </button>
+                    <button type="button" onclick="openFavoritesModal()" class="flex-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold py-1.5 px-3 rounded-xl border border-amber-200 transition active:scale-95 text-center">
+                        ★ Favoritos
+                    </button>
                 </div>
             </div>
         </div>
@@ -257,26 +267,6 @@
 
         <!-- ================= TAB 1: DIETA ================= -->
         <section id="tab-dieta" class="tab-content space-y-4">
-
-            <!-- Add Food Card (Clean: Title left, Escanear IA & Favoritos right, Crear Personalizado below) -->
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2.5">
-                <div class="flex items-center justify-between gap-2">
-                    <h3 class="text-sm font-bold text-slate-800">Añadir Alimento</h3>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <button type="button" onclick="openAiScanModal()" class="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold px-2.5 py-1.5 rounded-lg border border-emerald-200 transition active:scale-95">
-                            📷 Escanear IA
-                        </button>
-                        <button type="button" onclick="openFavoritesModal()" class="text-xs bg-brand-50 text-brand-700 hover:bg-brand-100 font-semibold px-2.5 py-1.5 rounded-lg border border-brand-200 transition active:scale-95">
-                            ★ Favoritos
-                        </button>
-                    </div>
-                </div>
-                <div>
-                    <button type="button" onclick="openCustomFoodModal()" class="text-xs text-brand-600 hover:text-brand-700 font-semibold py-0.5 transition">
-                        + Crear Personalizado
-                    </button>
-                </div>
-            </div>
 
             <!-- Whole-Meal Two-Tap Move Banner -->
             <div id="moveBanner" class="hidden bg-brand-50 border border-brand-200 text-brand-800 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs shadow-sm">
@@ -1273,7 +1263,7 @@
                             </div>
                         </div>
 
-                        <!-- Voice + Gemini + Add More Bar -->
+                        <!-- Voice + Gemini + Camera Bar -->
                         <div class="bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 space-y-2">
                             <div class="flex items-center gap-1.5">
                                 <input type="text" id="geminiInput-${cat.key}" placeholder="Dicta o escribe ${cat.title.toLowerCase()} (ej: 2 huevos, tostada y café)..." onkeydown="handleGeminiMealKey(event, '${cat.key}')" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
@@ -1288,8 +1278,8 @@
                                 <span id="micStatus-${cat.key}" class="${isMicOnThisMeal ? 'text-rose-600 font-semibold' : 'text-slate-400'} truncate">
                                     ${isMicOnThisMeal ? 'Grabando... vuelve a pulsar el micro al terminar' : 'Pulsa 🎤 para hablar, ciérralo y pulsa ✨ IA'}
                                 </span>
-                                <button type="button" onclick="addMoreToMeal('${cat.key}')" class="text-[11px] font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg shrink-0 transition active:scale-95">
-                                    + Añadir más
+                                <button type="button" onclick="openAiScanModal('${cat.key}')" title="Escanear alimento o etiqueta en ${cat.title}" aria-label="Cámara para ${cat.title}" class="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg shrink-0 transition active:scale-95 flex items-center gap-1">
+                                    <span>📷 Cámara</span>
                                 </button>
                             </div>
                         </div>
@@ -1506,10 +1496,13 @@
         }
 
         // ================= AI SCANNER (FOOD OR MACROS) + EDITABLE ITEMS =================
-        function openAiScanModal() {
+        function openAiScanModal(categoryOverride = null) {
             scanImageBase64 = null;
             scanImageMimeType = 'image/jpeg';
             editableScanRows = [];
+            if (categoryOverride) {
+                document.getElementById('aiScanMealCategory').value = categoryOverride;
+            }
             document.getElementById('aiScanCameraInput').value = '';
             document.getElementById('aiScanGalleryInput').value = '';
             document.getElementById('aiScanContextNote').value = '';
@@ -2143,7 +2136,7 @@ Si es una etiqueta nutricional, extrae los valores de energía y macronutrientes
                 if (micBtn) {
                     micBtn.className = isThis
                         ? 'w-8 h-8 rounded-lg bg-rose-600 text-white border border-rose-700 flex items-center justify-center text-sm shrink-0 animate-pulse'
-                        : 'w-8 h-8 rounded-lg bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border border-slate-200 flex items-center justify-center text-sm shrink-0 transition active:scale-95';
+                        : 'w-8 h-8 rounded-lg bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border-slate-200 border flex items-center justify-center text-sm shrink-0 transition active:scale-95';
                     micBtn.innerHTML = isThis ? '⏹️' : '🎤';
                     micBtn.title = isThis ? 'Pulsa para detener el micrófono' : 'Pulsa para hablar (no se corta solo)';
                 }
@@ -2242,16 +2235,6 @@ Si es una etiqueta nutricional, extrae los valores de energía y macronutrientes
                 stopActiveMicCleanly(false);
                 showToast('No se pudo iniciar el micrófono', '⚠️');
             }
-        }
-
-        function addMoreToMeal(categoryKey) {
-            const inputEl = document.getElementById(`geminiInput-${categoryKey}`);
-            const currentText = (inputEl ? inputEl.value : '').trim();
-            if (currentText) {
-                estimateAndAddMealWithGemini(categoryKey);
-                return;
-            }
-            openCustomFoodModal(categoryKey);
         }
 
         async function callGeminiNutritionModels(apiKey, prompt) {

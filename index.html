@@ -128,8 +128,8 @@ En objetivo
 <span id="toastIcon">ℹ️</span>
 <span id="toastText">Mensaje</span>
 </div>
-​<!-- Hidden Camera / Image Input for Nutrition Label Scanner -->
-<input type="file" id="labelImageInput" accept="image/*" capture="environment" onchange="handleLabelImageSelected(event)" class="hidden">
+​<!-- Hidden Gallery File Picker for Label Scanner -->
+<input type="file" id="labelGalleryInput" accept="image/*" onchange="handleLabelFileInput(event)" class="hidden">
 ​<!-- ================= TAB 1: DIETA ================= -->
 <section id="tab-dieta" class="tab-content space-y-4">
 ​<!-- Macronutrients Target vs Actual -->
@@ -194,12 +194,9 @@ En objetivo
 <div class="flex justify-between items-center gap-2 flex-wrap">
 <div>
 <h3 class="text-sm font-bold text-slate-800">Añadir Alimento</h3>
-<p class="text-[11px] text-slate-400">Búsqueda online o escaneo de etiqueta nutricional</p>
+<p class="text-[11px] text-slate-400">Búsqueda online (Mercadona, Carrefour, Hacendado...)</p>
 </div>
-<div class="flex items-center gap-1.5 flex-wrap">
-<button type="button" onclick="triggerLabelScan('desayuno')" class="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded-lg border border-emerald-200 transition flex items-center gap-1">
-<span>📷 Etiqueta</span>
-</button>
+<div class="flex items-center gap-2">
 <button type="button" onclick="openFavoritesModal()" class="text-xs bg-brand-50 text-brand-700 hover:bg-brand-100 font-semibold px-2.5 py-1 rounded-lg border border-brand-200 transition">
 ★ Favoritas
 </button>
@@ -404,9 +401,9 @@ Editar →
 <input type="number" id="profGoalOffset" step="50" placeholder="Ej: -400 o +300" oninput="onProfileDataChanged()" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
 </div>
 ​<div class="pt-2 border-t border-slate-100 space-y-1.5">
-<label class="block text-xs font-medium text-slate-700">Gemini API Key (Estimación por texto, voz y foto de etiquetas)</label>
+<label class="block text-xs font-medium text-slate-700">Gemini API Key (Estimación por texto y voz)</label>
 <input type="password" id="profGeminiKey" placeholder="AIza..." oninput="onGeminiKeyChanged(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-<p class="text-[11px] text-slate-400">Se guarda en este dispositivo para calcular calorías y macros por voz/texto y escanear etiquetas nutricionales.</p>
+<p class="text-[11px] text-slate-400">Se guarda en este dispositivo para calcular calorías y macros de cada comida o dictado por voz.</p>
 </div>
 ​<button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl text-sm transition active:scale-95 shadow-sm">
 Guardar Perfil
@@ -514,50 +511,60 @@ Tus datos se guardan en este navegador. Descarga <strong>nutriapp.json</strong> 
 </button>
 </div>
 </nav>
-​<!-- Modal: Nutrition Label Scanner Review & Adjust -->
-<div id="labelScannerModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-<div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-3.5 shadow-2xl max-h-[92vh] overflow-y-auto">
-<div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
-<div class="flex items-center gap-2">
-<span class="text-lg">📷</span>
+​<!-- Modal: Camera Capture & Gallery Picker for Label -->
+<div id="cameraCaptureModal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+<div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-3 shadow-2xl">
+<div class="flex justify-between items-center border-b border-slate-100 pb-2">
 <div>
-<h3 class="text-base font-bold text-slate-800 leading-tight">Escáner de Etiqueta</h3>
-<p class="text-[11px] text-slate-400">Revisa los datos y ajusta la cantidad o peso neto</p>
+<h3 class="text-sm font-bold text-slate-800">Escanear Etiqueta Nutricional</h3>
+<p id="cameraPermissionHint" class="text-[11px] text-slate-400">Solicitando acceso a la cámara...</p>
+</div>
+<button type="button" onclick="closeCameraCaptureModal()" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
+</div>
+​<div class="relative bg-slate-900 rounded-xl overflow-hidden min-h-[210px] max-h-64 flex items-center justify-center">
+<video id="cameraVideoPreview" autoplay playsinline muted class="w-full max-h-64 object-cover"></video>
+<div id="cameraFallbackMessage" class="hidden p-4 text-center text-xs text-slate-200 space-y-1">
+<p class="font-semibold">Cámara no disponible o permiso pendiente.</p>
+<p class="text-[11px] text-slate-400">Puedes elegir una foto de la galería o probar de nuevo.</p>
 </div>
 </div>
-<button type="button" onclick="closeLabelScannerModal()" class="text-slate-400 hover:text-slate-600 p-1 text-base">✕</button>
-</div>
-​<!-- Image Preview + Loading State -->
-<div class="relative bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center min-h-[110px] max-h-40">
-<img id="scanPreviewImg" src="" alt="Vista previa etiqueta" class="max-h-40 w-auto object-contain">
-<div id="scanLoadingOverlay" class="hidden absolute inset-0 bg-slate-900/70 backdrop-blur-xs flex flex-col items-center justify-center text-white p-3 text-center">
-<svg class="animate-spin h-6 w-6 text-emerald-400 mb-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-</svg>
-<span class="text-xs font-bold">Analizando etiqueta con Gemini IA...</span>
-<span class="text-[10px] text-slate-300 mt-0.5">Extrayendo producto, kcal, macros y peso neto</span>
+​<div class="grid grid-cols-2 gap-2">
+<button type="button" id="snapPhotoBtn" onclick="captureFrameFromCamera()" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 px-3 rounded-xl text-xs transition active:scale-95 shadow-sm">
+📷 Hacer Foto
+</button>
+<button type="button" onclick="openGalleryForLabel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 px-3 rounded-xl text-xs transition active:scale-95 border border-slate-200">
+🖼️ Galería
+</button>
 </div>
 </div>
-​<div id="scanWarningBanner" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-3 py-2 text-[11px] font-medium">
-No se pudo leer con total claridad. Verifica o completa los valores manualmente.
 </div>
-​<form onsubmit="confirmScannedLabelFood(event)" class="space-y-3">
-<!-- Editable Product Name with Quick Clear (X) -->
+​<!-- Modal: Review & Adjust Scanned Nutrition Label -->
+<div id="labelReviewModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+<div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-3.5 shadow-2xl max-h-[90vh] overflow-y-auto">
+<div class="flex justify-between items-center border-b border-slate-100 pb-2">
 <div>
-<label class="block text-xs font-medium text-slate-600 mb-1">Nombre del producto</label>
+<h3 class="text-base font-bold text-slate-800">Revisar Etiqueta Escaneada</h3>
+<p id="labelScanStatusText" class="text-[11px] text-slate-400">Analizando etiqueta...</p>
+</div>
+<button type="button" onclick="closeLabelReviewModal()" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
+</div>
+​<div class="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-100">
+<img id="labelPreviewThumb" src="" alt="Etiqueta" class="w-16 h-16 rounded-lg object-cover bg-slate-200 shrink-0">
+<div class="flex-1 min-w-0">
+<label class="block text-[11px] font-medium text-slate-600 mb-1">Nombre del producto</label>
 <div class="relative flex items-center">
-<input type="text" id="scanProductName" required placeholder="Ej: Yogur griego natural Mercadona" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-3 pr-9 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white">
-<button type="button" onclick="clearScanField('scanProductName')" title="Borrar nombre rápido" aria-label="Borrar nombre" class="absolute right-2 w-6 h-6 rounded-full bg-slate-200/80 hover:bg-rose-100 text-slate-600 hover:text-rose-600 flex items-center justify-center text-xs font-bold transition">
+<input type="text" id="labelProductName" placeholder="Nombre del producto..." class="w-full bg-white border border-slate-200 rounded-lg py-1.5 pl-2.5 pr-8 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+<button type="button" onclick="clearLabelInput('labelProductName')" title="Borrar nombre" aria-label="Borrar nombre" class="absolute right-1.5 w-5 h-5 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center text-[11px] font-bold transition">
 ✕
 </button>
 </div>
 </div>
-​<!-- Target Meal Category -->
+</div>
+​<form onsubmit="confirmLabelFood(event)" class="space-y-3">
 <div class="grid grid-cols-2 gap-2.5">
 <div>
-<label class="block text-xs font-medium text-slate-600 mb-1">Guardar en comida</label>
-<select id="scanMealCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500">
+<label class="block text-xs font-medium text-slate-600 mb-1">Comida del día</label>
+<select id="labelMealCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-500">
 <option value="desayuno">🥣 Desayuno</option>
 <option value="almuerzo">🥗 Almuerzo</option>
 <option value="cena">🍽️ Cena</option>
@@ -565,85 +572,75 @@ No se pudo leer con total claridad. Verifica o completa los valores manualmente.
 </select>
 </div>
 <div>
-<label class="block text-xs font-medium text-slate-600 mb-1">Peso neto envase (g/ml)</label>
+<label class="block text-xs font-medium text-slate-600 mb-1">Peso envase / neto (g)</label>
 <div class="relative flex items-center">
-<input type="number" id="scanNetWeight" step="any" min="1" placeholder="Ej: 200" oninput="onScanNetWeightChanged()" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-2.5 pr-8 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-<button type="button" onclick="clearScanField('scanNetWeight', true)" title="Borrar peso neto" class="absolute right-1.5 w-5 h-5 rounded-full bg-slate-200/80 hover:bg-rose-100 text-slate-600 hover:text-rose-600 flex items-center justify-center text-[10px] font-bold transition">
+<input type="number" id="labelPackageGrams" step="any" min="1" placeholder="Ej: 200" oninput="onLabelPackageGramsChanged()" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-2.5 pr-7 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+<button type="button" onclick="clearLabelInput('labelPackageGrams', true)" title="Borrar peso envase" class="absolute right-1.5 w-5 h-5 rounded-full bg-slate-200/80 hover:bg-rose-100 text-slate-600 hover:text-rose-600 flex items-center justify-center text-[10px] font-bold transition">
 ✕
 </button>
 </div>
 </div>
 </div>
-​<!-- Base Values per 100g/ml (Editable in case camera misreads a number) -->
-<div class="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-2">
-<div class="flex items-center justify-between">
-<span class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Valores por cada 100 g / ml</span>
-<span class="text-[10px] text-slate-400">Editables si hay reflejos</span>
-</div>
-<div class="grid grid-cols-4 gap-1.5">
+​<!-- Base per 100g/ml (editable if OCR misreads) -->
+<div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100 space-y-2">
+<span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Datos de la etiqueta (cada 100g / 100ml)</span>
+<div class="grid grid-cols-4 gap-1.5 text-xs">
 <div>
-<label class="block text-[10px] font-bold text-slate-600 mb-0.5">Kcal</label>
-<input type="number" id="scanBaseKcal" step="any" min="0" value="0" oninput="recalcScanPreview()" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+<label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Kcal</label>
+<input type="number" id="labelBaseKcal" step="any" min="0" value="0" oninput="recalcLabelTotals()" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
 </div>
 <div>
-<label class="block text-[10px] font-bold text-rose-600 mb-0.5">Prot (g)</label>
-<input type="number" id="scanBaseProt" step="any" min="0" value="0" oninput="recalcScanPreview()" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+<label class="block text-[10px] font-semibold text-rose-600 mb-0.5">Prot (g)</label>
+<input type="number" id="labelBaseProt" step="any" min="0" value="0" oninput="recalcLabelTotals()" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
 </div>
 <div>
-<label class="block text-[10px] font-bold text-amber-600 mb-0.5">Carb (g)</label>
-<input type="number" id="scanBaseCarbs" step="any" min="0" value="0" oninput="recalcScanPreview()" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+<label class="block text-[10px] font-semibold text-amber-600 mb-0.5">Carb (g)</label>
+<input type="number" id="labelBaseCarbs" step="any" min="0" value="0" oninput="recalcLabelTotals()" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
 </div>
 <div>
-<label class="block text-[10px] font-bold text-sky-600 mb-0.5">Grasa (g)</label>
-<input type="number" id="scanBaseFat" step="any" min="0" value="0" oninput="recalcScanPreview()" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+<label class="block text-[10px] font-semibold text-sky-600 mb-0.5">Grasa (g)</label>
+<input type="number" id="labelBaseFat" step="any" min="0" value="0" oninput="recalcLabelTotals()" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
 </div>
 </div>
 </div>
-​<!-- Portion Selector Buttons + Custom Grams -->
-<div class="space-y-2">
-<div class="flex items-center justify-between">
-<label class="text-xs font-medium text-slate-600">Cantidad consumida (g / ml)</label>
+​<!-- Portion to consume: 100g, full container or custom grams -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between gap-2">
+<label class="text-xs font-medium text-slate-600">Cantidad a registrar (g)</label>
 <div class="flex items-center gap-1">
-<button type="button" onclick="setScanConsumedGrams(100)" class="text-[11px] font-semibold bg-slate-100 hover:bg-brand-100 text-slate-700 hover:text-brand-800 px-2 py-0.5 rounded-md border border-slate-200 transition">
+<button type="button" onclick="setLabelPortionGrams(100)" class="text-[11px] font-semibold bg-slate-100 hover:bg-brand-100 text-slate-700 hover:text-brand-800 px-2 py-0.5 rounded-md transition">
 100g
 </button>
-<button type="button" id="btnUseNetWeight" onclick="useScanNetWeight()" class="text-[11px] font-semibold bg-brand-50 hover:bg-brand-100 text-brand-700 px-2 py-0.5 rounded-md border border-brand-200 transition">
+<button type="button" id="labelFullContainerBtn" onclick="applyFullContainerGrams()" class="text-[11px] font-semibold bg-brand-50 hover:bg-brand-100 text-brand-700 px-2 py-0.5 rounded-md border border-brand-200 transition">
 Envase completo
 </button>
 </div>
 </div>
 <div class="relative flex items-center">
-<input type="number" id="scanConsumedGrams" step="any" min="0.1" value="100" oninput="recalcScanPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-3 pr-9 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-<button type="button" onclick="clearScanField('scanConsumedGrams', true)" title="Borrar cantidad" class="absolute right-2 w-6 h-6 rounded-full bg-slate-200/80 hover:bg-rose-100 text-slate-600 hover:text-rose-600 flex items-center justify-center text-xs font-bold transition">
+<input type="number" id="labelConsumedGrams" step="any" min="0.1" value="100" oninput="recalcLabelTotals()" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-3 pr-8 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+<button type="button" onclick="clearLabelInput('labelConsumedGrams', true)" title="Borrar cantidad" class="absolute right-2 w-5 h-5 rounded-full bg-slate-200/80 hover:bg-rose-100 text-slate-600 hover:text-rose-600 flex items-center justify-center text-[10px] font-bold transition">
 ✕
 </button>
 </div>
 </div>
-​<!-- Live Calculated Summary -->
-<div class="bg-emerald-50/90 rounded-xl p-3 text-xs space-y-1 border border-emerald-200">
-<div class="flex justify-between font-bold text-emerald-900">
-<span>Total a registrar (<span id="scanSummaryGramsLabel">100g</span>):</span>
-<span id="scanTotalKcal" class="text-brand-700 text-sm">0 kcal</span>
+​<div class="bg-slate-50 rounded-xl p-3 text-xs space-y-1 border border-slate-100">
+<div class="flex justify-between font-bold text-slate-700">
+<span>Total a añadir:</span>
+<span id="labelCalcKcal" class="text-brand-600">0 kcal</span>
 </div>
-<div class="grid grid-cols-3 gap-2 text-slate-600 text-[11px] pt-1 border-t border-emerald-200/70">
-<div>Prot: <span id="scanTotalProt" class="font-bold text-rose-700">0g</span></div>
-<div>Carb: <span id="scanTotalCarbs" class="font-bold text-amber-700">0g</span></div>
-<div>Grasa: <span id="scanTotalFat" class="font-bold text-sky-700">0g</span></div>
+<div class="grid grid-cols-3 gap-2 text-slate-500 text-[11px] pt-1 border-t border-slate-200/60">
+<div>Prot: <span id="labelCalcProt" class="font-semibold text-slate-700">0g</span></div>
+<div>Carb: <span id="labelCalcCarbs" class="font-semibold text-slate-700">0g</span></div>
+<div>Grasa: <span id="labelCalcFat" class="font-semibold text-slate-700">0g</span></div>
 </div>
 </div>
-​<!-- Save to Custom Catalog Option -->
-<label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
-<input type="checkbox" id="scanSaveToCatalog" checked class="rounded text-brand-600 focus:ring-brand-500">
-<span>Guardar producto en mi catálogo local para futuras búsquedas</span>
+​<label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+<input type="checkbox" id="labelSaveCatalogCheck" checked class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+<span>Guardar en mi catálogo personalizado para futuras veces</span>
 </label>
-​<div class="grid grid-cols-3 gap-2 pt-1">
-<button type="button" onclick="retakeLabelPhoto()" class="col-span-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl text-xs transition active:scale-95 border border-slate-200">
-📷 Repetir
-</button>
-<button type="submit" class="col-span-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-xl text-sm transition active:scale-95 shadow-sm">
+​<button type="submit" id="labelConfirmBtn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl text-sm transition active:scale-95 shadow-sm">
 Añadir al Diario
 </button>
-</div>
 </form>
 </div>
 </div>
@@ -853,7 +850,9 @@ let pendingMoveMeal = null;
 let cloningSourceCategory = null;
 let presetMealCategoryForModal = null;
 let aiFeedbackByMeal = {};
-let scanTargetCategory = 'desayuno';
+​let activeCameraStream = null;
+let pendingLabelMealCategory = 'desayuno';
+let currentLabelDataUrl = '';
 ​window.onload = function() {
 loadFromStorage();
 document.getElementById('datePicker').value = appState.currentDate;
@@ -1085,11 +1084,11 @@ Clonar
 <span class="text-xs sm:text-sm font-bold text-brand-600 ml-1">{catKcal} kcal</span>
 </div>
 </div>
-​<!-- Voice + Camera Label Scanner + Gemini + Add More Bar -->
+​<!-- Voice + Label Camera + Gemini + Add More Bar -->
 <div class="bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 space-y-2">
 <div class="flex items-center gap-1.5">
 <input type="text" id="geminiInput-${cat.key}" placeholder="Dicta o escribe ${cat.title.toLowerCase()} (ej: 2 huevos, tostada y café)..." onkeydown="handleGeminiMealKey(event, '${cat.key}')" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
-<button type="button" onclick="triggerLabelScan('${cat.key}')" title="Escanear etiqueta nutricional con cámara o foto" aria-label="Escanear etiqueta nutricional" class="w-8 h-8 rounded-lg bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 flex items-center justify-center text-sm shrink-0 transition active:scale-95">
+<button type="button" onclick="openLabelScanner('${cat.key}')" title="Escanear etiqueta nutricional con cámara o foto" aria-label="Escanear etiqueta" class="w-8 h-8 rounded-lg bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border border-slate-200 flex items-center justify-center text-sm shrink-0 transition active:scale-95">
 📷
 </button>
 <button type="button" id="micBtn-${cat.key}" onclick="toggleVoiceMealInput('${cat.key}')" title="${isMicOnThisMeal ? 'Pulsa para detener el micrófono' : 'Pulsa para hablar (no se corta solo)'}" aria-label="${isMicOnThisMeal ? 'Detener micrófono' : 'Iniciar micrófono'}" class="w-8 h-8 rounded-lg ${isMicOnThisMeal ? 'bg-rose-600 text-white border-rose-700 animate-pulse' : 'bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-700 border-slate-200'} border flex items-center justify-center text-sm shrink-0 transition active:scale-95">
@@ -1101,7 +1100,7 @@ ${isMicOnThisMeal ? '⏹️' : '🎤'}
 </div>
 <div class="flex items-center justify-between gap-2 text-[11px]">
 <span id="micStatus-${cat.key}" class="${isMicOnThisMeal ? 'text-rose-600 font-semibold' : 'text-slate-400'} truncate">
-${isMicOnThisMeal ? 'Grabando... vuelve a pulsar el micro al terminar' : '📷 Etiqueta, 🎤 voz o escribe y pulsa ✨ IA'}
+${isMicOnThisMeal ? 'Grabando... vuelve a pulsar el micro al terminar' : 'Pulsa 🎤 para hablar, 📷 etiqueta o escribe y pulsa ✨ IA'}
 </span>
 <button type="button" onclick="addMoreToMeal('${cat.key}')" class="text-[11px] font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-lg shrink-0 transition active:scale-95">
 + Añadir más
@@ -1143,81 +1142,222 @@ el.value = preservedInputs[c.key];
 }
 });
 }
-​// ================= NUTRITION LABEL SCANNER (CAMERA / IMAGE) =================
-function triggerLabelScan(categoryKey) {
-const localKey = (appState.geminiApiKey || window.GEMINI_API_KEY || '').trim();
-if (!localKey) {
-showToast('Pon tu Gemini API Key en Perfil para escanear etiquetas', '⚠️');
+​// ================= NUTRITION LABEL SCANNER (CAMERA + GALLERY + GEMINI VISION) =================
+async function openLabelScanner(categoryKey) {
+pendingLabelMealCategory = categoryKey || 'desayuno';
+const modal = document.getElementById('cameraCaptureModal');
+const video = document.getElementById('cameraVideoPreview');
+const hint = document.getElementById('cameraPermissionHint');
+const fallback = document.getElementById('cameraFallbackMessage');
+const snapBtn = document.getElementById('snapPhotoBtn');
+​modal.classList.remove('hidden');
+fallback.classList.add('hidden');
+video.classList.remove('hidden');
+hint.textContent = 'Solicitando permiso de cámara...';
+snapBtn.disabled = false;
+​stopCameraStream();
+​if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+video.classList.add('hidden');
+fallback.classList.remove('hidden');
+snapBtn.disabled = true;
+hint.textContent = 'Cámara directa no soportada aquí; usa Galería.';
 return;
 }
-scanTargetCategory = categoryKey || 'desayuno';
-const input = document.getElementById('labelImageInput');
+​try {
+const stream = await navigator.mediaDevices.getUserMedia({
+video: { facingMode: { ideal: 'environment' } },
+audio: false
+});
+activeCameraStream = stream;
+video.srcObject = stream;
+hint.textContent = 'Enfoca la etiqueta nutricional y pulsa Hacer Foto';
+} catch (err) {
+video.classList.add('hidden');
+fallback.classList.remove('hidden');
+snapBtn.disabled = true;
+hint.textContent = 'Sin acceso a la cámara (permiso denegado o no disponible)';
+}
+}
+​function stopCameraStream() {
+if (activeCameraStream) {
+activeCameraStream.getTracks().forEach(track => track.stop());
+activeCameraStream = null;
+}
+const video = document.getElementById('cameraVideoPreview');
+if (video) {
+video.srcObject = null;
+}
+}
+​function closeCameraCaptureModal() {
+stopCameraStream();
+document.getElementById('cameraCaptureModal').classList.add('hidden');
+}
+​function openGalleryForLabel() {
+const input = document.getElementById('labelGalleryInput');
+if (input) {
 input.value = '';
 input.click();
 }
-​function retakeLabelPhoto() {
-const input = document.getElementById('labelImageInput');
-input.value = '';
-input.click();
 }
-​function closeLabelScannerModal() {
-document.getElementById('labelScannerModal').classList.add('hidden');
-}
-​function clearScanField(fieldId, shouldRecalc = false) {
-const el = document.getElementById(fieldId);
-if (!el) return;
-el.value = '';
-el.focus();
-if (shouldRecalc) {
-onScanNetWeightChanged();
-recalcScanPreview();
-}
-}
-​function compressImageToJpegBase64(file, maxDimension = 1280, quality = 0.85) {
-return new Promise((resolve, reject) => {
-const reader = new FileReader();
+​function handleLabelFileInput(event) {
+const file = event.target.files?.[0];
+if (!file) return;
+closeCameraCaptureModal();
+​const reader = new FileReader();
 reader.onload = function(e) {
-const img = new Image();
-img.onload = function() {
-let w = img.width;
-let h = img.height;
-if (w > maxDimension || h > maxDimension) {
+const dataUrl = e.target.result;
+if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
+processLabelImageDataUrl(dataUrl);
+}
+};
+reader.readAsDataURL(file);
+}
+​function captureFrameFromCamera() {
+const video = document.getElementById('cameraVideoPreview');
+if (!video || !video.videoWidth || !video.videoHeight) {
+showToast('Espera un instante a que cargue la cámara', '⚠️');
+return;
+}
+​const maxSide = 1280;
+let w = video.videoWidth;
+let h = video.videoHeight;
+if (w > maxSide || h > maxSide) {
 if (w >= h) {
-h = Math.round((h * maxDimension) / w);
-w = maxDimension;
+h = Math.round((h * maxSide) / w);
+w = maxSide;
 } else {
-w = Math.round((w * maxDimension) / h);
-h = maxDimension;
+w = Math.round((w * maxSide) / h);
+h = maxSide;
 }
 }
-const canvas = document.createElement('canvas');
+​const canvas = document.createElement('canvas');
 canvas.width = w;
 canvas.height = h;
 const ctx = canvas.getContext('2d');
-ctx.drawImage(img, 0, 0, w, h);
-const dataUrl = canvas.toDataURL('image/jpeg', quality);
-const base64 = dataUrl.split(',')[1];
-resolve({ dataUrl, base64, mimeType: 'image/jpeg' });
-};
-img.onerror = () => reject(new Error('No se pudo procesar la imagen'));
-img.src = e.target.result;
-};
-reader.onerror = () => reject(new Error('Error leyendo el archivo de imagen'));
-reader.readAsDataURL(file);
-});
+ctx.drawImage(video, 0, 0, w, h);
+const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+​closeCameraCaptureModal();
+processLabelImageDataUrl(dataUrl);
 }
-​async function callGeminiLabelVision(apiKey, base64Image, mimeType) {
+​function clearLabelInput(inputId, recalculate = false) {
+const el = document.getElementById(inputId);
+if (!el) return;
+el.value = '';
+el.focus();
+if (recalculate) {
+onLabelPackageGramsChanged();
+recalcLabelTotals();
+}
+}
+​function setLabelPortionGrams(grams) {
+const el = document.getElementById('labelConsumedGrams');
+if (el) {
+el.value = grams;
+recalcLabelTotals();
+}
+}
+​function onLabelPackageGramsChanged() {
+const pkgGrams = parseFloat(document.getElementById('labelPackageGrams').value) || 0;
+const btn = document.getElementById('labelFullContainerBtn');
+if (!btn) return;
+if (pkgGrams > 0) {
+btn.textContent = Envase (${pkgGrams}g);
+btn.disabled = false;
+btn.classList.remove('opacity-50');
+} else {
+btn.textContent = 'Envase completo';
+btn.disabled = true;
+btn.classList.add('opacity-50');
+}
+}
+​function applyFullContainerGrams() {
+const pkgGrams = parseFloat(document.getElementById('labelPackageGrams').value) || 0;
+if (pkgGrams > 0) {
+setLabelPortionGrams(pkgGrams);
+}
+}
+​function recalcLabelTotals() {
+const baseKcal = parseFloat(document.getElementById('labelBaseKcal').value) || 0;
+const baseProt = parseFloat(document.getElementById('labelBaseProt').value) || 0;
+const baseCarbs = parseFloat(document.getElementById('labelBaseCarbs').value) || 0;
+const baseFat = parseFloat(document.getElementById('labelBaseFat').value) || 0;
+const grams = parseFloat(document.getElementById('labelConsumedGrams').value) || 0;
+​const factor = grams / 100;
+document.getElementById('labelCalcKcal').textContent = ${Math.round(baseKcal * factor)} kcal;
+document.getElementById('labelCalcProt').textContent = ${Math.round(baseProt * factor * 10) / 10}g;
+document.getElementById('labelCalcCarbs').textContent = ${Math.round(baseCarbs * factor * 10) / 10}g;
+document.getElementById('labelCalcFat').textContent = ${Math.round(baseFat * factor * 10) / 10}g;
+}
+​function closeLabelReviewModal() {
+document.getElementById('labelReviewModal').classList.add('hidden');
+}
+​async function processLabelImageDataUrl(dataUrl) {
+currentLabelDataUrl = dataUrl;
+const modal = document.getElementById('labelReviewModal');
+const thumb = document.getElementById('labelPreviewThumb');
+const statusText = document.getElementById('labelScanStatusText');
+const confirmBtn = document.getElementById('labelConfirmBtn');
+​thumb.src = dataUrl;
+document.getElementById('labelMealCategory').value = pendingLabelMealCategory;
+document.getElementById('labelProductName').value = '';
+document.getElementById('labelPackageGrams').value = '';
+document.getElementById('labelBaseKcal').value = 0;
+document.getElementById('labelBaseProt').value = 0;
+document.getElementById('labelBaseCarbs').value = 0;
+document.getElementById('labelBaseFat').value = 0;
+document.getElementById('labelConsumedGrams').value = 100;
+onLabelPackageGramsChanged();
+recalcLabelTotals();
+​statusText.textContent = 'Leyendo etiqueta con Gemini IA...';
+confirmBtn.disabled = true;
+modal.classList.remove('hidden');
+​try {
+const localKey = (appState.geminiApiKey || window.GEMINI_API_KEY || '').trim();
+if (!localKey) {
+throw new Error('Pon tu Gemini API Key en Perfil para escanear etiquetas');
+}
+​const match = dataUrl.match(/^data:(image/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+if (!match) {
+throw new Error('Formato de imagen no válido');
+}
+​const mimeType = match[1];
+const base64Data = match[2];
+​const prompt = `Analiza esta foto de un producto alimenticio o tabla nutricional.
+Devuelve un objeto JSON con:
+​"product_name": nombre del producto si aparece en el envase (o "Producto de etiqueta" si solo se ve la tabla).
+​"kcal_100": calorías (kcal) por cada 100g o 100ml (número).
+​"protein_100": gramos de proteína por cada 100g o 100ml (número).
+​"carbs_100": gramos de carbohidratos por cada 100g o 100ml (número).
+​"fat_100": gramos de grasas por cada 100g o 100ml (número).
+​"package_grams": peso neto total del envase en gramos o ml si figura en la etiqueta (número, o null si no se ve).`;
+​const parsed = await callGeminiLabelVision(localKey, mimeType, base64Data, prompt);
+​const prodName = String(parsed.product_name || 'Producto de etiqueta').trim();
+const kcal100 = Math.max(0, Math.round(Number(parsed.kcal_100) || 0));
+const prot100 = Math.max(0, Math.round((Number(parsed.protein_100) || 0) * 10) / 10);
+const carbs100 = Math.max(0, Math.round((Number(parsed.carbs_100) || 0) * 10) / 10);
+const fat100 = Math.max(0, Math.round((Number(parsed.fat_100) || 0) * 10) / 10);
+const pkgGrams = Number(parsed.package_grams) > 0 ? Math.round(Number(parsed.package_grams) * 10) / 10 : null;
+​document.getElementById('labelProductName').value = prodName;
+document.getElementById('labelBaseKcal').value = kcal100;
+document.getElementById('labelBaseProt').value = prot100;
+document.getElementById('labelBaseCarbs').value = carbs100;
+document.getElementById('labelBaseFat').value = fat100;
+document.getElementById('labelPackageGrams').value = pkgGrams || '';
+document.getElementById('labelConsumedGrams').value = pkgGrams || 100;
+​onLabelPackageGramsChanged();
+recalcLabelTotals();
+statusText.textContent = 'Etiqueta leída. Ajusta lo que necesites antes de añadir.';
+} catch (err) {
+console.error('Error al escanear etiqueta:', err);
+const detail = (err && err.message) ? err.message.slice(0, 100) : 'No se pudo leer la etiqueta';
+statusText.textContent = ${detail}. Puedes escribir los valores a mano.;
+} finally {
+confirmBtn.disabled = false;
+}
+}
+​async function callGeminiLabelVision(apiKey, mimeType, base64Data, prompt) {
 const models = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-2.5-flash'];
 let lastError = null;
-​const prompt = `Analiza esta foto de un producto alimenticio o etiqueta nutricional.
-Extrae la información con precisión en formato JSON:
-​"product_name": nombre del producto (y marca si es visible en el envase, ej: "Yogur Griego Natural Hacendado"). Si no se ve el nombre, devuelve "Producto escaneado".
-​"kcal_per_100": calorías (kcal) por cada 100g o 100ml. Si la etiqueta solo muestra valores por porción, calcula el equivalente a 100g/ml o indica el valor de la porción si no hay peso.
-​"protein_per_100": gramos de proteína por cada 100g/ml (1 decimal).
-​"carbs_per_100": gramos de hidratos de carbono por cada 100g/ml (1 decimal).
-​"fat_per_100": gramos de grasas por cada 100g/ml (1 decimal).
-​"net_weight_grams": peso neto total del envase o tamaño de porción en gramos/ml si aparece en la foto (número, o 0 si no aparece).
-​"confidence": "high" si la tabla nutricional se lee con claridad, "low" si está borrosa, cortada o con reflejos.`;
 ​for (const modelName of models) {
 const endpoint = https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)};
 const res = await fetch(endpoint, {
@@ -1230,7 +1370,7 @@ parts: [
 {
 inline_data: {
 mime_type: mimeType,
-data: base64Image
+data: base64Data
 }
 }
 ]
@@ -1242,14 +1382,13 @@ responseSchema: {
 type: 'OBJECT',
 properties: {
 product_name: { type: 'STRING' },
-kcal_per_100: { type: 'NUMBER' },
-protein_per_100: { type: 'NUMBER' },
-carbs_per_100: { type: 'NUMBER' },
-fat_per_100: { type: 'NUMBER' },
-net_weight_grams: { type: 'NUMBER' },
-confidence: { type: 'STRING', enum: ['high', 'low'] }
+kcal_100: { type: 'NUMBER' },
+protein_100: { type: 'NUMBER' },
+carbs_100: { type: 'NUMBER' },
+fat_100: { type: 'NUMBER' },
+package_grams: { type: 'NUMBER', nullable: true }
 },
-required: ['product_name', 'kcal_per_100', 'protein_per_100', 'carbs_per_100', 'fat_per_100', 'net_weight_grams', 'confidence']
+required: ['product_name', 'kcal_100', 'protein_100', 'carbs_100', 'fat_100']
 }
 }
 })
@@ -1265,106 +1404,20 @@ if (res.status === 400 && msg.toLowerCase().includes('api key')) {
 throw lastError;
 }
 }
-​throw lastError || new Error('No se pudo analizar la etiqueta con Gemini');
+​throw lastError || new Error('No se pudo analizar la etiqueta');
 }
-​async function handleLabelImageSelected(event) {
-const file = event.target.files?.[0];
-if (!file) return;
-​const modal = document.getElementById('labelScannerModal');
-const previewImg = document.getElementById('scanPreviewImg');
-const loadingOverlay = document.getElementById('scanLoadingOverlay');
-const warningBanner = document.getElementById('scanWarningBanner');
-​document.getElementById('scanMealCategory').value = scanTargetCategory;
-warningBanner.classList.add('hidden');
-loadingOverlay.classList.remove('hidden');
-modal.classList.remove('hidden');
-​try {
-const { dataUrl, base64, mimeType } = await compressImageToJpegBase64(file);
-previewImg.src = dataUrl;
-​const localKey = (appState.geminiApiKey || window.GEMINI_API_KEY || '').trim();
-const parsed = await callGeminiLabelVision(localKey, base64, mimeType);
-​document.getElementById('scanProductName').value = String(parsed.product_name || 'Producto escaneado').trim();
-document.getElementById('scanBaseKcal').value = Math.max(0, Math.round(Number(parsed.kcal_per_100) || 0));
-document.getElementById('scanBaseProt').value = Math.max(0, Math.round((Number(parsed.protein_per_100) || 0) * 10) / 10);
-document.getElementById('scanBaseCarbs').value = Math.max(0, Math.round((Number(parsed.carbs_per_100) || 0) * 10) / 10);
-document.getElementById('scanBaseFat').value = Math.max(0, Math.round((Number(parsed.fat_per_100) || 0) * 10) / 10);
-​const netWeight = Number(parsed.net_weight_grams) || 0;
-document.getElementById('scanNetWeight').value = netWeight > 0 ? netWeight : '';
-document.getElementById('scanConsumedGrams').value = netWeight > 0 ? netWeight : 100;
-​if (parsed.confidence === 'low' || (Number(parsed.kcal_per_100) || 0) === 0) {
-warningBanner.classList.remove('hidden');
-}
-​onScanNetWeightChanged();
-recalcScanPreview();
-} catch (err) {
-console.error('Error escaneando etiqueta:', err);
-warningBanner.textContent = (err && err.message) ? Error: ${err.message}. Puedes rellenarlo manualmente. : 'No se pudo leer la imagen. Rellénalo manualmente.';
-warningBanner.classList.remove('hidden');
-document.getElementById('scanProductName').value = 'Producto escaneado';
-document.getElementById('scanBaseKcal').value = 0;
-document.getElementById('scanBaseProt').value = 0;
-document.getElementById('scanBaseCarbs').value = 0;
-document.getElementById('scanBaseFat').value = 0;
-document.getElementById('scanNetWeight').value = '';
-document.getElementById('scanConsumedGrams').value = 100;
-onScanNetWeightChanged();
-recalcScanPreview();
-} finally {
-loadingOverlay.classList.add('hidden');
-}
-}
-​function onScanNetWeightChanged() {
-const net = parseFloat(document.getElementById('scanNetWeight').value) || 0;
-const btn = document.getElementById('btnUseNetWeight');
-if (!btn) return;
-if (net > 0) {
-btn.textContent = Envase (${net}g);
-btn.disabled = false;
-btn.classList.remove('opacity-50');
-} else {
-btn.textContent = 'Envase completo';
-btn.disabled = true;
-btn.classList.add('opacity-50');
-}
-}
-​function setScanConsumedGrams(grams) {
-document.getElementById('scanConsumedGrams').value = grams;
-recalcScanPreview();
-}
-​function useScanNetWeight() {
-const net = parseFloat(document.getElementById('scanNetWeight').value) || 0;
-if (net > 0) {
-setScanConsumedGrams(net);
-}
-}
-​function recalcScanPreview() {
-const baseKcal = parseFloat(document.getElementById('scanBaseKcal').value) || 0;
-const baseProt = parseFloat(document.getElementById('scanBaseProt').value) || 0;
-const baseCarbs = parseFloat(document.getElementById('scanBaseCarbs').value) || 0;
-const baseFat = parseFloat(document.getElementById('scanBaseFat').value) || 0;
-const grams = parseFloat(document.getElementById('scanConsumedGrams').value) || 0;
-​const factor = grams / 100;
-const totalKcal = Math.round(baseKcal * factor);
-const totalProt = Math.round(baseProt * factor * 10) / 10;
-const totalCarbs = Math.round(baseCarbs * factor * 10) / 10;
-const totalFat = Math.round(baseFat * factor * 10) / 10;
-​document.getElementById('scanSummaryGramsLabel').textContent = ${grams}g;
-document.getElementById('scanTotalKcal').textContent = ${totalKcal} kcal;
-document.getElementById('scanTotalProt').textContent = ${totalProt}g;
-document.getElementById('scanTotalCarbs').textContent = ${totalCarbs}g;
-document.getElementById('scanTotalFat').textContent = ${totalFat}g;
-}
-​function confirmScannedLabelFood(e) {
+​function confirmLabelFood(e) {
 e.preventDefault();
-const name = document.getElementById('scanProductName').value.trim() || 'Producto escaneado';
-const category = document.getElementById('scanMealCategory').value;
-const baseKcal = Math.max(0, parseFloat(document.getElementById('scanBaseKcal').value) || 0);
-const baseProt = Math.max(0, parseFloat(document.getElementById('scanBaseProt').value) || 0);
-const baseCarbs = Math.max(0, parseFloat(document.getElementById('scanBaseCarbs').value) || 0);
-const baseFat = Math.max(0, parseFloat(document.getElementById('scanBaseFat').value) || 0);
-const gramsVal = parseFloat(document.getElementById('scanConsumedGrams').value);
-const grams = gramsVal && gramsVal > 0 ? gramsVal : 100;
-const saveCatalog = document.getElementById('scanSaveToCatalog').checked;
+const rawName = (document.getElementById('labelProductName').value || '').trim();
+const name = rawName || 'Producto de etiqueta';
+const category = document.getElementById('labelMealCategory').value || 'desayuno';
+const baseKcal = Math.max(0, parseFloat(document.getElementById('labelBaseKcal').value) || 0);
+const baseProt = Math.max(0, parseFloat(document.getElementById('labelBaseProt').value) || 0);
+const baseCarbs = Math.max(0, parseFloat(document.getElementById('labelBaseCarbs').value) || 0);
+const baseFat = Math.max(0, parseFloat(document.getElementById('labelBaseFat').value) || 0);
+const gramsInput = parseFloat(document.getElementById('labelConsumedGrams').value);
+const grams = gramsInput && gramsInput > 0 ? gramsInput : 100;
+const saveCatalog = document.getElementById('labelSaveCatalogCheck').checked;
 ​const factor = grams / 100;
 const itemToSave = {
 name: name,
@@ -1378,7 +1431,7 @@ fat: Math.round(baseFat * factor * 10) / 10
 };
 ​if (saveCatalog) {
 appState.customCatalog.unshift({
-id: 'scan-' + Date.now(),
+id: 'label-' + Date.now(),
 name: name,
 kcal: Math.round(baseKcal),
 protein: Math.round(baseProt * 10) / 10,
@@ -1389,12 +1442,11 @@ fat: Math.round(baseFat * 10) / 10
 ​const dayLog = getDayLog(appState.currentDate);
 dayLog.meals[category].push(itemToSave);
 ​saveStorage();
-closeLabelScannerModal();
+closeLabelReviewModal();
 renderApp();
 showToast(Etiqueta añadida (+${itemToSave.kcal} kcal), '📷');
 }
-​// ================= MEAL MANAGEMENT =================
-function startMoveMeal(fromCategory) {
+​function startMoveMeal(fromCategory) {
 const dayLog = getDayLog(appState.currentDate);
 const items = dayLog.meals[fromCategory] || [];
 if (items.length === 0) {
@@ -1908,7 +1960,7 @@ if (statusEl) {
 statusEl.className = isThis ? 'text-rose-600 font-semibold truncate' : 'text-slate-400 truncate';
 statusEl.textContent = isThis
 ? 'Grabando... vuelve a pulsar el micro al terminar'
-: '📷 Etiqueta, 🎤 voz o escribe y pulsa ✨ IA';
+: 'Pulsa 🎤 para hablar, 📷 etiqueta o escribe y pulsa ✨ IA';
 }
 });
 }
@@ -2276,7 +2328,7 @@ switchTab('tab-dieta');
 ​// ================= BACKUP (nutriapp.json) =================
 function exportBackupToFile() {
 const dataToExport = {
-version: '1.2',
+version: '1.1',
 exportDate: new Date().toISOString(),
 profile: appState.profile,
 macrosPct: appState.macrosPct,

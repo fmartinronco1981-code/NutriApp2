@@ -124,7 +124,7 @@
                     </div>
                 </div>
 
-                <!-- Solo las 3 tarjetas de colores de Macronutrientes (sin cabecera ni % de grupo) -->
+                <!-- Solo las 3 tarjetas de colores de Macronutrientes -->
                 <div class="grid grid-cols-3 gap-2 pt-0.5">
                     <!-- Protein -->
                     <div class="bg-rose-50/80 p-2 rounded-xl border border-rose-100 flex flex-col justify-between">
@@ -258,51 +258,23 @@
         <!-- ================= TAB 1: DIETA ================= -->
         <section id="tab-dieta" class="tab-content space-y-4">
 
-            <!-- Search & Add Food Card -->
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
-                <div class="flex justify-between items-center gap-2 flex-wrap">
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-800">Añadir Alimento</h3>
-                        <p class="text-[11px] text-slate-400">Búsqueda online (Mercadona, Carrefour, Hacendado...)</p>
-                    </div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <button type="button" onclick="openAiScanModal()" class="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded-lg border border-emerald-200 transition">
+            <!-- Add Food Card (Clean: Title left, Escanear IA & Favoritos right, Crear Personalizado below) -->
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                    <h3 class="text-sm font-bold text-slate-800">Añadir Alimento</h3>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button type="button" onclick="openAiScanModal()" class="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold px-2.5 py-1.5 rounded-lg border border-emerald-200 transition active:scale-95">
                             📷 Escanear IA
                         </button>
-                        <button type="button" onclick="openFavoritesModal()" class="text-xs bg-brand-50 text-brand-700 hover:bg-brand-100 font-semibold px-2.5 py-1 rounded-lg border border-brand-200 transition">
-                            ★ Favoritas
-                        </button>
-                        <button type="button" onclick="openCustomFoodModal()" class="text-xs text-brand-600 hover:text-brand-700 font-semibold px-1.5 py-1 transition">
-                            + Crear Personalizado
+                        <button type="button" onclick="openFavoritesModal()" class="text-xs bg-brand-50 text-brand-700 hover:bg-brand-100 font-semibold px-2.5 py-1.5 rounded-lg border border-brand-200 transition active:scale-95">
+                            ★ Favoritos
                         </button>
                     </div>
                 </div>
-
-                <div class="flex gap-2">
-                    <div class="relative flex-1">
-                        <input type="text" id="foodSearchInput" placeholder="Ej: Avena Mercadona, Leche Carrefour, Huevo..." onkeyup="handleSearchKeyUp(event)" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 absolute left-3 top-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                    <button type="button" onclick="searchFood()" class="bg-brand-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm hover:bg-brand-700 transition active:scale-95 shadow-sm">
-                        Buscar
+                <div>
+                    <button type="button" onclick="openCustomFoodModal()" class="text-xs text-brand-600 hover:text-brand-700 font-semibold py-0.5 transition">
+                        + Crear Personalizado
                     </button>
-                </div>
-
-                <!-- Search Results Container -->
-                <div id="searchResultsContainer" class="hidden space-y-2 pt-2 border-t border-slate-100">
-                    <div class="flex justify-between items-center text-xs text-slate-400 font-medium">
-                        <span>Resultados de búsqueda:</span>
-                        <span id="searchLoader" class="hidden text-brand-600 flex items-center gap-1">
-                            <svg class="animate-spin h-3.5 w-3.5 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg> Consultando Open Food Facts...
-                        </span>
-                    </div>
-                    <div id="searchResultsList" class="max-h-64 overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
-                    </div>
                 </div>
             </div>
 
@@ -745,7 +717,7 @@
         </div>
     </div>
 
-    <!-- Modal: Saved Meal Templates (Favoritas) -->
+    <!-- Modal: Saved Meal Templates (Favoritos) -->
     <div id="favoritesModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl max-h-[82vh] flex flex-col">
             <div class="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -1269,31 +1241,35 @@
 
                 html += `
                     <div class="bg-white rounded-2xl p-4 shadow-sm border ${isSourceMeal ? 'border-brand-600 ring-2 ring-brand-200 bg-brand-50/20' : (isTargetForMove ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-100')} space-y-2.5 transition">
-                        <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-lg shrink-0">${cat.icon}</span>
-                                <div class="min-w-0">
-                                    <h3 class="font-bold text-slate-800 text-sm truncate">${cat.title}</h3>
-                                    ${items.length > 0 ? `<p class="text-[10px] text-slate-500 font-medium truncate">P: <strong class="text-rose-600">${catP}g</strong> · C: <strong class="text-amber-600">${catC}g</strong> · G: <strong class="text-sky-600">${catF}g</strong></p>` : ''}
+                        <div class="border-b border-slate-100 pb-2 space-y-1.5">
+                            <!-- Título del turno arriba para verse claro -->
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="text-lg shrink-0">${cat.icon}</span>
+                                    <h3 class="font-bold text-slate-800 text-sm sm:text-base">${cat.title}</h3>
                                 </div>
+                                ${items.length > 0 ? `<p class="text-[11px] text-slate-500 font-medium shrink-0">P: <strong class="text-rose-600">${catP}g</strong> · C: <strong class="text-amber-600">${catC}g</strong> · G: <strong class="text-sky-600">${catF}g</strong></p>` : ''}
                             </div>
-                            <div class="flex items-center gap-1.5 shrink-0">
-                                ${isTargetForMove ? `
-                                    <button type="button" onclick="completeMoveMealTo('${cat.key}')" class="text-[11px] font-bold bg-brand-600 hover:bg-brand-700 text-white px-2.5 py-1 rounded-lg transition active:scale-95">
-                                        Mover aquí
+                            <!-- Línea debajo con Mover turno, Clonar, Guardar y Calorías -->
+                            <div class="flex items-center justify-between gap-1.5 flex-wrap">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    ${isTargetForMove ? `
+                                        <button type="button" onclick="completeMoveMealTo('${cat.key}')" class="text-[11px] font-bold bg-brand-600 hover:bg-brand-700 text-white px-2.5 py-1 rounded-lg transition active:scale-95">
+                                            Mover aquí
+                                        </button>
+                                    ` : (items.length > 0 ? `
+                                        <button type="button" onclick="startMoveMeal('${cat.key}')" title="Mover todo el turno a otra comida" class="text-[11px] font-bold px-2 py-1 rounded-lg border ${isSourceMeal ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-700 border-slate-200'} transition">
+                                            ${isSourceMeal ? 'Origen' : 'Mover turno'}
+                                        </button>
+                                    ` : '')}
+                                    <button type="button" onclick="openCloneMealModal('${cat.key}')" title="Clonar comida a otra fecha o turno" class="text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-lg transition">
+                                        Clonar
                                     </button>
-                                ` : (items.length > 0 ? `
-                                    <button type="button" onclick="startMoveMeal('${cat.key}')" title="Mover todo el turno a otra comida" class="text-[11px] font-bold px-2 py-1 rounded-lg border ${isSourceMeal ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-700 border-slate-200'} transition">
-                                        ${isSourceMeal ? 'Origen' : 'Mover turno'}
+                                    <button type="button" onclick="saveMealAsTemplate('${cat.key}')" title="Guardar turno como favorita" class="text-[11px] font-semibold bg-brand-50 hover:bg-brand-100 text-brand-700 px-2 py-1 rounded-lg border border-brand-200/70 transition">
+                                        ★ Guardar
                                     </button>
-                                ` : '')}
-                                <button type="button" onclick="openCloneMealModal('${cat.key}')" title="Clonar comida a otra fecha o turno" class="text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-lg transition">
-                                    Clonar
-                                </button>
-                                <button type="button" onclick="saveMealAsTemplate('${cat.key}')" title="Guardar turno como favorita" class="text-[11px] font-semibold bg-brand-50 hover:bg-brand-100 text-brand-700 px-2 py-1 rounded-lg border border-brand-200/70 transition">
-                                    ★ Guardar
-                                </button>
-                                <span class="text-xs sm:text-sm font-bold text-brand-600 ml-1">${catKcal} kcal</span>
+                                </div>
+                                <span class="text-xs sm:text-sm font-bold text-brand-600 ml-auto">${catKcal} kcal</span>
                             </div>
                         </div>
 
@@ -1473,7 +1449,7 @@
             });
 
             saveStorage();
-            showToast('Comida guardada en Favoritas', '★');
+            showToast('Comida guardada en Favoritos', '★');
         }
 
         function openFavoritesModal() {
@@ -1824,121 +1800,6 @@ Si es una etiqueta nutricional, extrae los valores de energía y macronutrientes
             renderApp();
             const totalAdded = cleanItems.reduce((s, x) => s + x.kcal, 0);
             showToast(`Guardados ${cleanItems.length} ítem(s) (+${totalAdded} kcal)`, '✅');
-        }
-
-        async function searchFood() {
-            const query = document.getElementById('foodSearchInput').value.trim();
-            if (!query) return;
-
-            const resultsContainer = document.getElementById('searchResultsContainer');
-            const resultsList = document.getElementById('searchResultsList');
-            const loader = document.getElementById('searchLoader');
-
-            resultsContainer.classList.remove('hidden');
-            resultsList.innerHTML = '';
-            loader.classList.remove('hidden');
-
-            const combinedCatalog = [...DEFAULT_CATALOG, ...appState.customCatalog];
-            const localMatches = combinedCatalog.filter(item =>
-                item.name.toLowerCase().includes(query.toLowerCase())
-            );
-
-            let html = '';
-            if (localMatches.length > 0) {
-                html += `<div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Catálogo Local / Favoritos</div>`;
-                localMatches.forEach(item => {
-                    html += createSearchResultHTML(item, 'Local');
-                });
-            }
-
-            try {
-                const url = `https://es.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=35`;
-                const response = await fetch(url);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.products && data.products.length > 0) {
-                        const superBrands = ['hacendado', 'mercadona', 'carrefour', 'deliplus', 'compy', 'bosque verde', 'dia', 'lidl', 'eroski', 'el corte ingles', 'alcampo'];
-
-                        const parsedProducts = [];
-                        data.products.forEach(prod => {
-                            const pName = prod.product_name_es || prod.product_name || 'Alimento';
-                            const rawBrand = (prod.brands || '').trim();
-                            const nut = prod.nutriments || {};
-                            const kcal = Math.round(nut['energy-kcal_100g'] || nut['energy-kcal_value'] || nut['energy-kcal'] || 0);
-
-                            if (kcal > 0) {
-                                const brandLower = rawBrand.toLowerCase();
-                                const nameLower = pName.toLowerCase();
-
-                                let isSuper = superBrands.some(sb => brandLower.includes(sb) || nameLower.includes(sb));
-                                let displayBrand = rawBrand;
-
-                                if (brandLower.includes('hacendado') || nameLower.includes('hacendado') || brandLower.includes('mercadona') || nameLower.includes('mercadona')) {
-                                    displayBrand = 'Mercadona (Hacendado)';
-                                    isSuper = true;
-                                } else if (brandLower.includes('carrefour') || nameLower.includes('carrefour')) {
-                                    displayBrand = 'Carrefour';
-                                    isSuper = true;
-                                } else if (brandLower.includes('deliplus') || nameLower.includes('deliplus')) {
-                                    displayBrand = 'Mercadona (Deliplus)';
-                                    isSuper = true;
-                                }
-
-                                parsedProducts.push({
-                                    id: 'off-' + (prod.id || Math.random()),
-                                    name: pName,
-                                    brand: displayBrand,
-                                    isSupermarket: isSuper,
-                                    kcal: kcal,
-                                    protein: Math.round((nut.proteins_100g || 0) * 10) / 10,
-                                    carbs: Math.round((nut.carbohydrates_100g || 0) * 10) / 10,
-                                    fat: Math.round((nut.fat_100g || 0) * 10) / 10
-                                });
-                            }
-                        });
-
-                        parsedProducts.sort((a, b) => (b.isSupermarket ? 1 : 0) - (a.isSupermarket ? 1 : 0));
-
-                        if (parsedProducts.length > 0) {
-                            html += `<div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider my-1">Open Food Facts (Supermercados & Marcas)</div>`;
-                            parsedProducts.forEach(prod => {
-                                html += createSearchResultHTML(prod);
-                            });
-                        }
-                    }
-                }
-            } catch (err) {
-                console.log('Error conectando a OpenFoodFacts API', err);
-            }
-
-            loader.classList.add('hidden');
-            if (!html) {
-                resultsList.innerHTML = `<p class="text-xs text-slate-400 py-2">Sin resultados para "${query}". Prueba con otro término o usa "+ Crear Personalizado".</p>`;
-            } else {
-                resultsList.innerHTML = html;
-            }
-        }
-
-        function handleSearchKeyUp(e) {
-            if (e.key === 'Enter') searchFood();
-        }
-
-        function createSearchResultHTML(item, defaultTag = '') {
-            const jsonStr = JSON.stringify(item).replace(/"/g, '&quot;');
-            const badgeStr = item.brand ? `🛒 ${item.brand}` : (defaultTag ? defaultTag : '');
-
-            return `
-                <div onclick="openAddFoodModal(${jsonStr})" class="p-2.5 bg-slate-50 hover:bg-brand-50 rounded-xl cursor-pointer transition flex justify-between items-center border border-slate-100 hover:border-brand-200">
-                    <div class="pr-2">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="font-semibold text-xs text-slate-800">${item.name}</span>
-                            ${badgeStr ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">${badgeStr}</span>` : ''}
-                        </div>
-                        <span class="text-[11px] text-slate-400">100g: ${item.kcal} kcal | P: ${item.protein || 0}g C: ${item.carbs || 0}g G: ${item.fat || 0}g</span>
-                    </div>
-                    <span class="text-xs font-bold text-brand-600 bg-brand-100/60 px-2 py-1 rounded-lg shrink-0">+ Añadir</span>
-                </div>
-            `;
         }
 
         function openAddFoodModal(item, categoryOverride = null) {
